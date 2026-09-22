@@ -184,3 +184,252 @@ From the project directory:
 dotnet restore
 dotnet build
 dotnet run
+
+## Assignment 4.2 — Requests, Responses & Service Layer
+
+Assignment 4.2 extends the RondiTrack API by introducing explicit request and response DTOs, manual domain mapping, a service layer for business decisions, RFC 9457 Problem Details, and an idempotent contribution-recording operation.
+
+### DTO Boundaries
+
+The API does not expose domain entities directly through HTTP responses.
+
+User endpoints return `UserResponse` DTOs, while Stokvel endpoints return `StokvelResponse` DTOs. Contribution operations return `ContributionResponse`.
+
+Create and update endpoints also accept request DTOs rather than binding directly to domain entities:
+
+* `CreateUserRequest`
+* `UpdateUserRequest`
+* `CreateStokvelRequest`
+* `UpdateStokvelRequest`
+* `RecordContributionRequest`
+
+This keeps the HTTP contract separate from the domain model and prevents clients from over-posting properties that should only be controlled by the application.
+
+The `StokvelResponse` exposes a `MemberCount` instead of exposing the internal `MemberIds` collection.
+
+### Manual Mapping
+
+RondiTrack uses explicit manual mapping in `Mappings/DomainMappings.cs`.
+
+Each domain entity has one clear response mapping:
+
+* `User` → `UserResponse`
+* `Stokvel` → `StokvelResponse`
+* `Contribution` → `ContributionResponse`
+
+No mapping library is used.
+
+Manual mapping was chosen because the project handles financial values and the mapping should remain explicit and easy to review. This makes it clear exactly which domain properties are allowed to cross the HTTP boundary and avoids hiding money-related transformations behind configuration or conventions.
+
+### Service Layer
+
+Business decisions that involve more than simple entity validation are handled by the service layer.
+
+`StokvelService` contains the application decisions for:
+
+* Adding a user to a stokvel
+* Preventing duplicate membership
+* Enforcing the 20-member limit
+* Removing a membership
+* Recording contributions
+* Preventing duplicate contributions for the same member and cycle
+* Validating contribution business rules
+* Checking and enforcing idempotency
+
+Controllers are responsible for HTTP concerns such as route parameters, headers, request DTOs, and status codes. The service does not return HTTP status codes and does not depend on `HttpContext`.
+
+This keeps the controller thin and prevents business rules from being duplicated across HTTP actions.
+
+### Contribution Recording
+
+A contribution is recorded through:
+
+`POST /api/Stokvels/{stokvelId}/members/{userId}/contributions`
+
+The request contains:
+
+```json
+{
+  "cycle": 1,
+  "amount": 500
+}
+```
+
+The contribution domain rule requires the amount to be exactly R500 and the cycle to be greater than zero.
+
+A member can only make one contribution for a particular stokvel and cycle.
+
+If a contribution already exists for the same member and cycle, the service returns a conflict instead of creating another contribution.
+
+### Idempotency
+
+Contribution recording requires the `Idempotency-Key` HTTP header.
+
+Example:
+
+```http
+Idempotency-Key: contribution-cycle-1-user-1
+```
+
+The service creates a deterministic SHA-256 request hash using the stokvel ID, user ID, cycle, and amount.
+
+The idempotency behaviour is:
+
+1. A new key is reserved before the contribution is completed.
+2. The contribution is recorded.
+3. The original response is stored against the key and request hash.
+4. Repeating the same request with the same key returns the original contribution response.
+5. Reusing the same key with a different request payload returns `409 Conflict`.
+6. A key that is currently reserved but has not completed is treated as a conflict/processing condition.
+
+This makes the contribution operation safe to retry without creating a second contribution.
+
+The current implementation uses an in-memory idempotency store as required by the assignment. A production implementation would persist the idempotency record together with the contribution in the same database transaction and would normally apply a retention period such as 24 hours.
+
+### RFC 9457 Problem Details
+
+API errors use the RFC 9457 Problem Details structure.
+
+The common implementation is located in:
+
+`Common/ProblemResponses.cs`
+
+The response includes fields such as:
+
+* `type`
+* `title`
+* `status`
+* `detail`
+* `instance`
+
+The application uses a consistent `problem+json` error shape for the explicit API errors handled by the controllers.
+
+Examples include:
+
+* `400 Bad Request`
+* `404 Not Found`
+* `409 Conflict`
+* `422 Unprocessable Entity`
+
+### HTTP Status Code Decisions
+
+RondiTrack distinguishes malformed requests from valid requests that violate business rules.
+
+| Situation                                                     |                     Status |
+| ------------------------------------------------------------- | -------------------------: |
+| Malformed or invalid request data                             |          `400 Bad Request` |
+| Resource does not exist                                       |            `404 Not Found` |
+| Current resource state conflicts with the requested operation |             `409 Conflict` |
+| Request is well-formed but violates a business rule           | `422 Unprocessable Entity` |
+| Successful creation                                           |              `201 Created` |
+| Successful operation returning a response                     |                   `200 OK` |
+| Successful update/delete with no response body                |           `204 No Content` |
+
+For example, an invalid contribution amount such as R300 is syntactically valid JSON but violates the stokvel contribution business rule, so it returns `422 Unprocessable Entity`.
+
+A duplicate contribution or reused idempotency key with a different payload represents a conflict with the current application state, so it returns `409 Conflict`.
+
+### Async Design
+
+The application continues to use asynchronous operations throughout the repository, service, and controller layers.
+
+Controllers await service/repository operations rather than blocking on tasks with `.Result` or `.Wait()`.
+
+The in-memory repositories return `Task`-based results so the architecture remains compatible with asynchronous persistence that could be introduced later.
+
+### Layer Boundaries
+
+The current architecture is:
+
+```text
+HTTP Request
+    ↓
+Controller
+    ↓
+Service
+    ↓
+Repository
+    ↓
+In-Memory Store
+```
+
+The boundaries are:
+
+* Controllers handle HTTP concerns.
+* Request DTOs define input contracts.
+* Services make business decisions.
+* Domain entities enforce their own invariants.
+* Repositories handle data access.
+* Response DTOs define the public HTTP output.
+* Mapping is performed explicitly in `Mappings/DomainMappings.cs`.
+* Domain entities do not cross the HTTP boundary.
+
+### Assignment 4.2 Testing
+
+The contribution endpoint should be tested with Scalar or the requests in `RondiTrack.http`.
+
+The required idempotency test is:
+
+```text
+Request A:
+Idempotency-Key = KEY-001
+Body = { "cycle": 1, "amount": 500 }
+
+Request B:
+Idempotency-Key = KEY-001
+Body = { "cycle": 1, "amount": 500 }
+
+Expected:
+Request B returns the same contribution result as Request A.
+```
+
+A different body using the same key must be rejected:
+
+```text
+Request A:
+Idempotency-Key = KEY-001
+Body = { "cycle": 1, "amount": 500 }
+
+Request B:
+Idempotency-Key = KEY-001
+Body = { "cycle": 2, "amount": 500 }
+
+Expected:
+409 Conflict
+```
+
+A second contribution for the same member and cycle using a different idempotency key must also return:
+
+```text
+409 Conflict
+```
+
+An invalid contribution amount must return:
+
+```text
+422 Unprocessable Entity
+```
+
+A missing stokvel or user must return:
+
+```text
+404 Not Found
+```
+
+### Assignment 4.2 Summary
+
+Assignment 4.2 moves RondiTrack from a controller/repository-focused design toward a layered API architecture.
+
+The main changes are:
+
+* Request DTOs instead of binding entities directly.
+* Response DTOs instead of exposing domain entities.
+* Explicit manual mapping.
+* Service-layer business decisions.
+* Contribution recording.
+* Duplicate-contribution protection.
+* Idempotency-Key support.
+* RFC 9457 Problem Details.
+* Clear HTTP status-code semantics.
+* Async operations throughout the application.
+* In-memory persistence as required by the assignment.

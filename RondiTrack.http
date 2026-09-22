@@ -1,90 +1,251 @@
 @RondiTrack_HostAddress = http://localhost:5076
 
+### ============================================================
+
+### USERS
+
+### ============================================================
+
 ### Get all users
+
 GET {{RondiTrack_HostAddress}}/api/Users
 Accept: application/json
 
 ###
 
-### Get all stokvels
-GET {{RondiTrack_HostAddress}}/api/Stokvels
-Accept: application/json
-
-###
-
 ### Create user
+
 POST {{RondiTrack_HostAddress}}/api/Users
 Content-Type: application/json
 
 {
-  "fullName": "Nomsa Khumalo",
-  "email": "nomsa@example.com"
-}
-
-###
-
-### Create stokvel
-POST {{RondiTrack_HostAddress}}/api/Stokvels
-Content-Type: application/json
-
-{
-  "name": "Community Savings Stokvel",
-  "monthlyContribution": 500
+"fullName": "Nomsa Khumalo",
+"email": "[nomsa@example.com](mailto:nomsa@example.com)"
 }
 
 ###
 
 ### Get user by ID
+
 GET {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
-
-###
-
-### Get stokvel by ID
-GET {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
+Accept: application/json
 
 ###
 
 ### Update user
+
 PUT {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
 Content-Type: application/json
 
 {
-  "fullName": "Updated User",
-  "email": "updated@example.com"
+"fullName": "Updated User",
+"email": "[updated@example.com](mailto:updated@example.com)"
 }
+
+###
+
+### Delete user
+
+DELETE {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
+
+###
+
+### ============================================================
+
+### STOKVELS
+
+### ============================================================
+
+### Get all stokvels
+
+GET {{RondiTrack_HostAddress}}/api/Stokvels
+Accept: application/json
+
+###
+
+### Create stokvel
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels
+Content-Type: application/json
+
+{
+"name": "Community Savings Stokvel",
+"monthlyContribution": 500
+}
+
+###
+
+### Get stokvel by ID
+
+GET {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
+Accept: application/json
 
 ###
 
 ### Update stokvel
+
 PUT {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
 Content-Type: application/json
 
 {
-  "name": "Updated Savings Stokvel",
-  "monthlyContribution": 300
+"name": "Updated Savings Stokvel",
+"monthlyContribution": 500
 }
 
 ###
 
+### Delete stokvel
+
+DELETE {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
+
+###
+
+### ============================================================
+
+### MEMBERSHIP
+
+### ============================================================
+
 ### Get stokvel members
+
 GET {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members
+Accept: application/json
 
 ###
 
 ### Add member to stokvel
+
 POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000
 
 ###
 
 ### Remove member from stokvel
+
 DELETE {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000
 
 ###
 
-### Delete user
-DELETE {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
+### ============================================================
+
+### CONTRIBUTIONS — ASSIGNMENT 4.2
+
+### ============================================================
+
+### Record contribution
+
+### Replace the IDs with a real stokvel ID and member ID.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-001
+Content-Type: application/json
+
+{
+"cycle": 1,
+"amount": 500
+}
 
 ###
 
-### Delete stokvel
-DELETE {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
+### Retry the exact same contribution with the exact same key.
+
+### Expected: same original contribution response.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-001
+Content-Type: application/json
+
+{
+"cycle": 1,
+"amount": 500
+}
+
+###
+
+### Reuse the same key with a different payload.
+
+### Expected: 409 Conflict.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-001
+Content-Type: application/json
+
+{
+"cycle": 2,
+"amount": 500
+}
+
+###
+
+### Duplicate contribution using a new idempotency key.
+
+### Expected: 409 Conflict because cycle 1 was already paid.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-002
+Content-Type: application/json
+
+{
+"cycle": 1,
+"amount": 500
+}
+
+###
+
+### Invalid contribution amount.
+
+### Expected: 422 Unprocessable Entity.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-003
+Content-Type: application/json
+
+{
+"cycle": 2,
+"amount": 300
+}
+
+###
+
+### Invalid contribution cycle.
+
+### Expected: 422 Unprocessable Entity.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-004
+Content-Type: application/json
+
+{
+"cycle": 0,
+"amount": 500
+}
+
+###
+
+### Missing Idempotency-Key.
+
+### Expected: 400 Bad Request.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Content-Type: application/json
+
+{
+"cycle": 3,
+"amount": 500
+}
+
+###
+
+### Missing stokvel.
+
+### Expected: 404 Not Found.
+
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000/contributions
+Idempotency-Key: contribution-key-005
+Content-Type: application/json
+
+{
+"cycle": 3,
+"amount": 500
+}
+
+###
