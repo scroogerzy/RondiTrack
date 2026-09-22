@@ -1,0 +1,90 @@
+@RondiTrack_HostAddress = http://localhost:5076
+
+### Get all users
+GET {{RondiTrack_HostAddress}}/api/Users
+Accept: application/json
+
+###
+
+### Get all stokvels
+GET {{RondiTrack_HostAddress}}/api/Stokvels
+Accept: application/json
+
+###
+
+### Create user
+POST {{RondiTrack_HostAddress}}/api/Users
+Content-Type: application/json
+
+{
+  "fullName": "Nomsa Khumalo",
+  "email": "nomsa@example.com"
+}
+
+###
+
+### Create stokvel
+POST {{RondiTrack_HostAddress}}/api/Stokvels
+Content-Type: application/json
+
+{
+  "name": "Community Savings Stokvel",
+  "monthlyContribution": 500
+}
+
+###
+
+### Get user by ID
+GET {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
+
+###
+
+### Get stokvel by ID
+GET {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
+
+###
+
+### Update user
+PUT {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "fullName": "Updated User",
+  "email": "updated@example.com"
+}
+
+###
+
+### Update stokvel
+PUT {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
+Content-Type: application/json
+
+{
+  "name": "Updated Savings Stokvel",
+  "monthlyContribution": 300
+}
+
+###
+
+### Get stokvel members
+GET {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members
+
+###
+
+### Add member to stokvel
+POST {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000
+
+###
+
+### Remove member from stokvel
+DELETE {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000/members/00000000-0000-0000-0000-000000000000
+
+###
+
+### Delete user
+DELETE {{RondiTrack_HostAddress}}/api/Users/00000000-0000-0000-0000-000000000000
+
+###
+
+### Delete stokvel
+DELETE {{RondiTrack_HostAddress}}/api/Stokvels/00000000-0000-0000-0000-000000000000
