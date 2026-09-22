@@ -1,21 +1,10 @@
 namespace RondiTrack.Models;
 
-// Request model used when creating a new User.
-public record CreateUserRequest(
-    string FullName,
-    string Email);
-
-// Request model used when updating an existing User.
-public record UpdateUserRequest(
-    string FullName,
-    string Email);
-
-// Request model used when creating a new Stokvel.
-public record CreateStokvelRequest(
-    string Name,
-    decimal MonthlyContribution);
-
-// Request model used when updating an existing Stokvel.
-public record UpdateStokvelRequest(
-    string Name,
-    decimal MonthlyContribution);
+// Intentionally left empty.
+//
+// Day 1 request records were moved to:
+// DTOs/Users
+// DTOs/Stokvels
+//
+// Keeping requests as DTOs separates
+// HTTP contracts from domain models.

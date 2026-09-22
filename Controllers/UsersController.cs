@@ -1,10 +1,11 @@
 using Microsoft.AspNetCore.Mvc;
+using RondiTrack.Common;
 using RondiTrack.Data;
-using RondiTrack.Models;
+using RondiTrack.DTOs.Users;
+using RondiTrack.Mappings;
 
 namespace RondiTrack.Controllers;
 
-// Provides HTTP endpoints for managing Users.
 [ApiController]
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
@@ -16,38 +17,40 @@ public class UsersController : ControllerBase
         _repository = repository;
     }
 
-    // GET: api/users
-    // Returns all users.
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<User>>> GetUsersAsync()
+    public async Task<ActionResult<IEnumerable<UserResponse>>> GetUsersAsync()
     {
         var users = await _repository.GetAllAsync();
 
-        return Ok(users);
+        var response = users
+            .Select(user => user.ToResponse())
+            .ToList();
+
+        return Ok(response);
     }
 
-    // GET: api/users/{id}
-    // Returns one user by ID.
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<User>> GetUserByIdAsync(Guid id)
+    public async Task<ActionResult<UserResponse>> GetUserByIdAsync(Guid id)
     {
         var user = await _repository.GetByIdAsync(id);
 
         if (user is null)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"User '{id}' was not found.",
+                HttpContext.Request.Path);
+        }
 
-        return Ok(user);
+        return Ok(user.ToResponse());
     }
 
-    // POST: api/users
-    // Creates a new user.
     [HttpPost]
-    public async Task<ActionResult<User>> CreateUserAsync(
+    public async Task<ActionResult<UserResponse>> CreateUserAsync(
         CreateUserRequest request)
     {
         try
         {
-            var user = new User(
+            var user = new RondiTrack.Models.User(
                 request.FullName,
                 request.Email);
 
@@ -56,17 +59,16 @@ public class UsersController : ControllerBase
             return CreatedAtAction(
                 nameof(GetUserByIdAsync),
                 new { id = user.Id },
-                user);
+                user.ToResponse());
         }
         catch (ArgumentException ex)
         {
-            // Invalid domain data results in HTTP 400.
-            return BadRequest(new { error = ex.Message });
+            return ProblemResponses.BadRequest(
+                ex.Message,
+                HttpContext.Request.Path);
         }
     }
 
-    // PUT: api/users/{id}
-    // Updates an existing user.
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateUserAsync(
         Guid id,
@@ -75,11 +77,14 @@ public class UsersController : ControllerBase
         var user = await _repository.GetByIdAsync(id);
 
         if (user is null)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"User '{id}' was not found.",
+                HttpContext.Request.Path);
+        }
 
         try
         {
-            // Business validation remains inside the User entity.
             user.UpdateFullName(request.FullName);
             user.UpdateEmail(request.Email);
 
@@ -89,19 +94,23 @@ public class UsersController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ProblemResponses.BadRequest(
+                ex.Message,
+                HttpContext.Request.Path);
         }
     }
 
-    // DELETE: api/users/{id}
-    // Deletes an existing user.
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteUserAsync(Guid id)
     {
         var deleted = await _repository.DeleteAsync(id);
 
         if (!deleted)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"User '{id}' was not found.",
+                HttpContext.Request.Path);
+        }
 
         return NoContent();
     }

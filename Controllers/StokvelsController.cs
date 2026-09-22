@@ -1,52 +1,63 @@
 using Microsoft.AspNetCore.Mvc;
+using RondiTrack.Common;
 using RondiTrack.Data;
+using RondiTrack.DTOs.Contributions;
+using RondiTrack.DTOs.Stokvels;
+using RondiTrack.DTOs.Users;
+using RondiTrack.Mappings;
 using RondiTrack.Models;
+using RondiTrack.Services;
 
 namespace RondiTrack.Controllers;
 
-// Provides HTTP endpoints for managing Stokvels and their memberships.
 [ApiController]
 [Route("api/[controller]")]
 public class StokvelsController : ControllerBase
 {
     private readonly IStokvelRepository _stokvelRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IStokvelService _stokvelService;
 
     public StokvelsController(
         IStokvelRepository stokvelRepository,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IStokvelService stokvelService)
     {
         _stokvelRepository = stokvelRepository;
         _userRepository = userRepository;
+        _stokvelService = stokvelService;
     }
 
-    // GET: api/stokvels
-    // Returns all stokvels.
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Stokvel>>> GetStokvelsAsync()
+    public async Task<ActionResult<IEnumerable<StokvelResponse>>> GetStokvelsAsync()
     {
         var stokvels = await _stokvelRepository.GetAllAsync();
 
-        return Ok(stokvels);
+        var response = stokvels
+            .Select(stokvel => stokvel.ToResponse())
+            .ToList();
+
+        return Ok(response);
     }
 
-    // GET: api/stokvels/{id}
-    // Returns one stokvel by ID.
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<Stokvel>> GetStokvelByIdAsync(Guid id)
+    public async Task<ActionResult<StokvelResponse>> GetStokvelByIdAsync(
+        Guid id)
     {
         var stokvel = await _stokvelRepository.GetByIdAsync(id);
 
         if (stokvel is null)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"Stokvel '{id}' was not found.",
+                HttpContext.Request.Path);
+        }
 
-        return Ok(stokvel);
+        return Ok(stokvel.ToResponse());
     }
 
-    // POST: api/stokvels
-    // Creates a new stokvel.
     [HttpPost]
-    public async Task<ActionResult<Stokvel>> CreateStokvelAsync(
+    public async Task<ActionResult<StokvelResponse>> CreateStokvelAsync(
         CreateStokvelRequest request)
     {
         try
@@ -60,17 +71,16 @@ public class StokvelsController : ControllerBase
             return CreatedAtAction(
                 nameof(GetStokvelByIdAsync),
                 new { id = stokvel.Id },
-                stokvel);
+                stokvel.ToResponse());
         }
         catch (ArgumentException ex)
         {
-            // Invalid domain data results in HTTP 400.
-            return BadRequest(new { error = ex.Message });
+            return ProblemResponses.BadRequest(
+                ex.Message,
+                HttpContext.Request.Path);
         }
     }
 
-    // PUT: api/stokvels/{id}
-    // Updates an existing stokvel.
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateStokvelAsync(
         Guid id,
@@ -79,11 +89,14 @@ public class StokvelsController : ControllerBase
         var stokvel = await _stokvelRepository.GetByIdAsync(id);
 
         if (stokvel is null)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"Stokvel '{id}' was not found.",
+                HttpContext.Request.Path);
+        }
 
         try
         {
-            // Business validation remains inside the Stokvel entity.
             stokvel.UpdateName(request.Name);
             stokvel.UpdateContribution(request.MonthlyContribution);
 
@@ -93,103 +106,186 @@ public class StokvelsController : ControllerBase
         }
         catch (ArgumentException ex)
         {
-            return BadRequest(new { error = ex.Message });
+            return ProblemResponses.BadRequest(
+                ex.Message,
+                HttpContext.Request.Path);
         }
     }
 
-    // DELETE: api/stokvels/{id}
-    // Deletes an existing stokvel.
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteStokvelAsync(Guid id)
     {
         var deleted = await _stokvelRepository.DeleteAsync(id);
 
         if (!deleted)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"Stokvel '{id}' was not found.",
+                HttpContext.Request.Path);
+        }
 
         return NoContent();
     }
 
-    // GET: api/stokvels/{stokvelId}/members
-    // Returns the users who belong to a stokvel.
     [HttpGet("{stokvelId:guid}/members")]
-    public async Task<ActionResult<IEnumerable<User>>> GetMembersAsync(
+    public async Task<ActionResult<IEnumerable<UserResponse>>> GetMembersAsync(
         Guid stokvelId)
     {
         var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
 
         if (stokvel is null)
-            return NotFound();
+        {
+            return ProblemResponses.NotFound(
+                $"Stokvel '{stokvelId}' was not found.",
+                HttpContext.Request.Path);
+        }
 
-        var members = new List<User>();
+        var members = new List<UserResponse>();
 
         foreach (var memberId in stokvel.MemberIds)
         {
             var user = await _userRepository.GetByIdAsync(memberId);
 
             if (user is not null)
-                members.Add(user);
+            {
+                members.Add(user.ToResponse());
+            }
         }
 
         return Ok(members);
     }
 
-    // POST: api/stokvels/{stokvelId}/members/{userId}
-    // Adds an existing user to a stokvel.
     [HttpPost("{stokvelId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> AddMemberAsync(
         Guid stokvelId,
         Guid userId)
     {
-        var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
+        var result = await _stokvelService.AddMemberAsync(
+            stokvelId,
+            userId);
 
-        if (stokvel is null)
-            return NotFound();
-
-        var user = await _userRepository.GetByIdAsync(userId);
-
-        if (user is null)
-            return NotFound();
-
-        try
+        return result switch
         {
-            // The Stokvel entity enforces duplicate and capacity rules.
-            stokvel.AddMember(userId);
+            AddMemberResult.Added =>
+                NoContent(),
 
-            await _stokvelRepository.UpdateAsync(stokvel);
+            AddMemberResult.StokvelNotFound =>
+                ProblemResponses.NotFound(
+                    $"Stokvel '{stokvelId}' was not found.",
+                    HttpContext.Request.Path),
 
-            return NoContent();
-        }
-        catch (InvalidOperationException ex)
-        {
-            // Duplicate membership or maximum capacity is a conflict.
-            return Conflict(new { error = ex.Message });
-        }
+            AddMemberResult.UserNotFound =>
+                ProblemResponses.NotFound(
+                    $"User '{userId}' was not found.",
+                    HttpContext.Request.Path),
+
+            AddMemberResult.AlreadyMember =>
+                ProblemResponses.Conflict(
+                    $"User '{userId}' is already a member of stokvel '{stokvelId}'.",
+                    HttpContext.Request.Path),
+
+            AddMemberResult.MembershipLimitReached =>
+                ProblemResponses.Conflict(
+                    "A stokvel may not exceed 20 members.",
+                    HttpContext.Request.Path),
+
+            _ =>
+                ProblemResponses.BadRequest(
+                    "The membership operation could not be completed.",
+                    HttpContext.Request.Path)
+        };
     }
 
-    // DELETE: api/stokvels/{stokvelId}/members/{userId}
-    // Removes an existing user from a stokvel.
     [HttpDelete("{stokvelId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> RemoveMemberAsync(
         Guid stokvelId,
         Guid userId)
     {
-        var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
+        var removed = await _stokvelService.RemoveMemberAsync(
+            stokvelId,
+            userId);
 
-        if (stokvel is null)
-            return NotFound();
-
-        try
+        if (!removed)
         {
-            stokvel.RemoveMember(userId);
-
-            await _stokvelRepository.UpdateAsync(stokvel);
-
-            return NoContent();
+            return ProblemResponses.NotFound(
+                $"The membership between user '{userId}' and stokvel '{stokvelId}' was not found.",
+                HttpContext.Request.Path);
         }
-        catch (InvalidOperationException ex)
+
+        return NoContent();
+    }
+
+    [HttpPost("{stokvelId:guid}/members/{userId:guid}/contributions")]
+    public async Task<ActionResult<ContributionResponse>> RecordContributionAsync(
+        Guid stokvelId,
+        Guid userId,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        RecordContributionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
         {
-            return Conflict(new { error = ex.Message });
+            return ProblemResponses.BadRequest(
+                "The Idempotency-Key header is required.",
+                HttpContext.Request.Path);
         }
+
+        var result = await _stokvelService.RecordContributionAsync(
+            stokvelId,
+            userId,
+            idempotencyKey,
+            request);
+
+        return result switch
+        {
+            RecordContributionResult.Recorded recorded =>
+                StatusCode(
+                    StatusCodes.Status201Created,
+                    recorded.Contribution),
+
+            RecordContributionResult.ReplayedFromCache replayed =>
+                StatusCode(
+                    StatusCodes.Status201Created,
+                    replayed.Contribution),
+
+            RecordContributionResult.KeyConflict =>
+                ProblemResponses.Conflict(
+                    "The Idempotency-Key has already been used with a different request or is currently being processed.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.StokvelNotFound =>
+                ProblemResponses.NotFound(
+                    $"Stokvel '{stokvelId}' was not found.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.UserNotFound =>
+                ProblemResponses.NotFound(
+                    $"User '{userId}' was not found.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.UserNotMember =>
+                ProblemResponses.Conflict(
+                    $"User '{userId}' is not a member of stokvel '{stokvelId}'.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.DuplicateContribution duplicate =>
+                ProblemResponses.Conflict(
+                    $"User '{duplicate.UserId}' has already made a contribution for cycle {duplicate.Cycle}.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.InvalidAmount invalidAmount =>
+                ProblemResponses.UnprocessableEntity(
+                    $"Contribution amount '{invalidAmount.Amount}' is invalid. The contribution must be exactly R500.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.InvalidCycle invalidCycle =>
+                ProblemResponses.UnprocessableEntity(
+                    $"Contribution cycle '{invalidCycle.Cycle}' is invalid. The cycle must be greater than zero.",
+                    HttpContext.Request.Path),
+
+            _ =>
+                ProblemResponses.BadRequest(
+                    "The contribution could not be recorded.",
+                    HttpContext.Request.Path)
+        };
     }
 }
