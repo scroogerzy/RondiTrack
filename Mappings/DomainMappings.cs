@@ -1,4 +1,5 @@
 using RondiTrack.DTOs.Contributions;
+using RondiTrack.DTOs.ContributionCycles;
 using RondiTrack.DTOs.Stokvels;
 using RondiTrack.DTOs.Users;
 using RondiTrack.Models;
@@ -48,4 +49,17 @@ public static class DomainMappings
             contribution.Amount,
             contribution.RecordedAt);
     }
+
+
+    public static ContributionCycleResponse ToResponse(
+    this ContributionCycle cycle)
+{
+    return new ContributionCycleResponse(
+        cycle.Id,
+        cycle.StokvelId,
+        cycle.PeriodNumber,
+        cycle.StartDate,
+        cycle.EndDate,
+        cycle.TargetAmount);
+}
 }

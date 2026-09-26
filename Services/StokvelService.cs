@@ -217,12 +217,12 @@ public class StokvelService : IStokvelService
         RecordContributionRequest request)
     {
         var payload = new
-        {
-            StokvelId = stokvelId,
-            UserId = userId,
-            request.Cycle,
-            request.Amount
-        };
+{
+    StokvelId = stokvelId,
+    UserId = userId,
+    request.Cycle,
+    request.Amount
+};
 
         var json = JsonSerializer.Serialize(payload);
 

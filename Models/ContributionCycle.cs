@@ -1,0 +1,81 @@
+namespace RondiTrack.Models;
+
+/// <summary>
+/// Represents a specific contribution period for a stokvel.
+/// </summary>
+public class ContributionCycle
+{
+    public Guid Id { get; }
+
+    public Guid StokvelId { get; }
+
+    public int PeriodNumber { get; private set; }
+
+    public DateTime StartDate { get; private set; }
+
+    public DateTime EndDate { get; private set; }
+
+    public decimal TargetAmount { get; private set; }
+
+    public ContributionCycle(
+        Guid stokvelId,
+        int periodNumber,
+        DateTime startDate,
+        DateTime endDate,
+        decimal targetAmount)
+    {
+        if (stokvelId == Guid.Empty)
+            throw new ArgumentException(
+                "Stokvel ID is required.",
+                nameof(stokvelId));
+
+        if (periodNumber <= 0)
+            throw new ArgumentException(
+                "Period number must be greater than zero.",
+                nameof(periodNumber));
+
+        if (endDate < startDate)
+            throw new ArgumentException(
+                "End date must be on or after the start date.",
+                nameof(endDate));
+
+        if (targetAmount <= 0)
+            throw new ArgumentException(
+                "Target amount must be greater than zero.",
+                nameof(targetAmount));
+
+        Id = Guid.NewGuid();
+        StokvelId = stokvelId;
+        PeriodNumber = periodNumber;
+        StartDate = startDate;
+        EndDate = endDate;
+        TargetAmount = targetAmount;
+    }
+
+    public void Update(
+        int periodNumber,
+        DateTime startDate,
+        DateTime endDate,
+        decimal targetAmount)
+    {
+        if (periodNumber <= 0)
+            throw new ArgumentException(
+                "Period number must be greater than zero.",
+                nameof(periodNumber));
+
+        if (endDate < startDate)
+            throw new ArgumentException(
+                "End date must be on or after the start date.",
+                nameof(endDate));
+
+        if (targetAmount <= 0)
+            throw new ArgumentException(
+                "Target amount must be greater than zero.",
+                nameof(targetAmount));
+
+        PeriodNumber = periodNumber;
+        StartDate = startDate;
+        EndDate = endDate;
+        TargetAmount = targetAmount;
+    }
+}
