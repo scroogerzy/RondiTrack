@@ -6,7 +6,13 @@ using RondiTrack.Mappings;
 using RondiTrack.Models;
 
 namespace RondiTrack.Controllers;
-
+/// <summary>
+/// Creates a new user.
+/// </summary>
+/// <response code="201">User created.</response>
+/// <response code="400">Validation failed.</response>
+[ProducesResponseType(typeof(DTOs.Users.UserResponse), StatusCodes.Status201Created)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
 [Route("api/stokvels/{stokvelId:guid}/contribution-cycles")]
 public class ContributionCyclesController : ControllerBase

@@ -1022,3 +1022,52 @@ The main changes are:
 * Idempotency replay verification.
 
 The application remains in-memory for the current stage and is structured so that persistent storage can be introduced in a later assignment.
+
+##ASSIGMENT 4.4
+| Endpoint                                               | Documented | Validated | Unit Tested | Integration Tested | Status Codes Reviewed |
+| ------------------------------------------------------ | ---------- | --------- | ----------- | ------------------ | --------------------- |
+| GET /api/users                                         | Yes        | Yes       | N/A         | Yes                | Yes                   |
+| GET /api/users/{id}                                    | Yes        | Yes       | N/A         | Yes                | Yes                   |
+| POST /api/users                                        | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| PUT /api/users/{id}                                    | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| DELETE /api/users/{id}                                 | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| GET /api/stokvels                                      | Yes        | Yes       | N/A         | Yes                | Yes                   |
+| GET /api/stokvels/{id}                                 | Yes        | Yes       | N/A         | Yes                | Yes                   |
+| POST /api/stokvels                                     | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| PUT /api/stokvels/{id}                                 | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| DELETE /api/stokvels/{id}                              | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| POST /api/stokvels/{id}/members/{userId}               | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| DELETE /api/stokvels/{id}/members/{userId}             | Yes        | Yes       | Yes         | Yes                | Yes                   |
+| POST /api/stokvels/{id}/members/{userId}/contributions | Yes        | Yes       | Yes         | Yes                | Yes                   |
+
+Edge Cases Identified
+
+Edge Case 1 – Empty Collection
+
+Verified collection endpoints return 200 OK even when no assumptions are made about contents.
+
+Edge Case 2 – Boundary Validation
+
+Contribution cycle = 0.
+Expected rejection.
+Verified validator prevents invalid cycle values.
+
+Edge Case 3 – Missing Resource
+
+Random GUID requested.
+Expected 404 Not Found.
+Verified API returns correct ProblemDetails response.
+Test Run
+Total Tests: 14
+Passed: 14
+Failed: 0
+Skipped: 0
+
+Deliberate Failure Check
+To verify coverage, the contribution-cycle validation rule was temporarily altered so that invalid cycle values were accepted.
+
+The related automated test failed immediately.
+
+The rule was restored and the test suite returned to green (14/14 passing).
+
+This confirms the test suite would detect regressions in validation behavior.

@@ -5,7 +5,13 @@ using RondiTrack.DTOs.Users;
 using RondiTrack.Mappings;
 
 namespace RondiTrack.Controllers;
-
+/// <summary>
+/// Creates a new user.
+/// </summary>
+/// <response code="201">User created.</response>
+/// <response code="400">Validation failed.</response>
+[ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
+[ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
 [Route("api/[controller]")]
 public class UsersController : ControllerBase
