@@ -12,4 +12,14 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.6" />
   </ItemGroup>
 
+  <!--
+    The test project lives inside the repository, but it must NOT
+    be compiled as part of the production API project.
+    It is built separately as RondiTrack.Tests.
+  -->
+  <ItemGroup>
+    <Compile Remove="RondiTrack.Tests\**" />
+    <EmbeddedResource Remove="RondiTrack.Tests\**" />
+    <None Remove="RondiTrack.Tests\**" />
+  </ItemGroup>
 </Project>
