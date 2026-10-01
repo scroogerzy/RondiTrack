@@ -2,13 +2,15 @@ namespace RondiTrack.Models;
 
 // User is an ENTITY, not a DTO.
 // It has identity (Id) and behaviour (update methods).
+// EF Core also needs a private constructor so it can materialize
+// existing database rows without bypassing the public domain constructor.
 public class User
 {
-    public Guid Id { get; }
+    public Guid Id { get; private set; }
 
-    public string FullName { get; private set; }
+    public string FullName { get; private set; } = null!;
 
-    public string Email { get; private set; }
+    public string Email { get; private set; } = null!;
 
     public User(string fullName, string email)
     {
@@ -34,6 +36,12 @@ public class User
         Id = Guid.NewGuid();
         FullName = fullName;
         Email = email;
+    }
+
+    // EF Core uses this constructor when materializing
+    // an existing User row from PostgreSQL.
+    private User()
+    {
     }
 
     // Updates must go through domain behaviour,
