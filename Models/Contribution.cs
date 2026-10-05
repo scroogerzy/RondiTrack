@@ -36,6 +36,11 @@ public class Contribution
     public DateTime RecordedAt { get; }
 
     /// <summary>
+    /// Navigation to the contribution cycle containing this contribution.
+    /// </summary>
+    public ContributionCycle ContributionCycle { get; private set; } = null!;
+
+    /// <summary>
     /// Creates a new contribution.
     /// </summary>
     public Contribution(
@@ -55,24 +60,26 @@ public class Contribution
                 nameof(userId));
 
         if (cycle <= 0)
-{
-    throw new ArgumentException(
-        "Contribution cycle must be greater than zero.",
-        nameof(cycle));
-}
-
+            throw new ArgumentException(
+                "Contribution cycle must be greater than zero.",
+                nameof(cycle));
 
         if (amount != 500m)
-{
-    throw new ArgumentException(
-        "Contribution amount must be exactly R500.",
-        nameof(amount));
-}
+            throw new ArgumentException(
+                "Contribution amount must be exactly R500.",
+                nameof(amount));
+
         Id = Guid.NewGuid();
         StokvelId = stokvelId;
         UserId = userId;
         Cycle = cycle;
         Amount = amount;
         RecordedAt = DateTime.UtcNow;
+    }
+
+        // EF Core uses this constructor when materializing an existing
+    // contribution from PostgreSQL.
+    private Contribution()
+    {
     }
 }

@@ -1,1073 +1,934 @@
 # RondiTrack
 
-RondiTrack is a .NET 10 Web API for managing stokvel users, stokvel groups, memberships, contributions, and contribution cycles.
+RondiTrack is a RESTful ASP.NET Core Web API for managing stokvel users, stokvels, contribution cycles, contributions, and membership relationships.
 
-The application currently uses in-memory persistence and is being developed incrementally toward a production-ready API architecture.
+The project is developed incrementally as part of the Bitcube backend training assignments. The implementation has progressed from in-memory persistence and API validation toward Entity Framework Core, PostgreSQL, explicit relationship modeling, query analysis, and production-oriented data-access practices.
 
 ---
 
-## Assignment 4.1
-
-RondiTrack provides the API foundation and domain model for a stokvel tracking system.
-
-## Technology
+## Technology Stack
 
 * .NET 10
 * ASP.NET Core Web API
 * C#
-* Microsoft.AspNetCore.OpenApi
-* Scalar API Reference
+* Entity Framework Core 10
+* PostgreSQL
+* Npgsql
 * FluentValidation
-* In-memory data storage
-* No Entity Framework Core or PostgreSQL yet
+* OpenAPI
+* Scalar API Reference
+* xUnit
+* Moq
+* Git / GitHub
 
 ---
 
 # Architecture
 
-RondiTrack uses a layered Controller/Service/Repository architecture.
-
-The current architecture is:
+RondiTrack follows a layered architecture:
 
 ```text
 HTTP Request
-    ↓
-Controller
-    ↓
-Service
-    ↓
-Repository Interface
-    ↓
-In-Memory Repository
-    ↓
-Domain Entity
+     |
+     v
+Controllers
+     |
+     v
+Services
+     |
+     v
+Repositories / EF Core
+     |
+     v
+RondiTrackDbContext
+     |
+     v
+PostgreSQL
 ```
 
-The responsibilities are separated as follows:
+The application uses interfaces for repository boundaries and separates business logic from persistence concerns.
 
-* Controllers handle HTTP requests, routes, headers, DTOs, and HTTP responses.
-* Services contain application-level business decisions.
-* Domain entities protect their own invariants.
-* Repositories handle data access.
-* DTOs define the HTTP request and response contracts.
-* Mapping is performed explicitly in `Mappings/DomainMappings.cs`.
-* Middleware handles cross-cutting concerns such as correlation IDs and unhandled exceptions.
+Database-backed functionality introduced in Assignments 5.1 and 5.2 uses Entity Framework Core and PostgreSQL.
 
 ---
 
 # Domain Model
 
-## User
+The main domain entities are:
 
-A User has:
+* User
+* Stokvel
+* StokvelMember
+* ContributionCycle
+* Contribution
 
-* Id
-* FullName
-* Email
-
-The User entity protects its own validity rules.
-
-Rules include:
-
-* Full name is required.
-* Email is required.
-* Email must contain basic valid email structure.
-
-User properties use private setters so callers cannot freely modify the entity.
-
----
-
-## Stokvel
-
-A Stokvel has:
-
-* Id
-* Name
-* MonthlyContribution
-* MemberIds
-
-Rules include:
-
-* Stokvel name is required.
-* Monthly contribution must be exactly R500.
-* A user cannot be added to the same stokvel twice.
-* A stokvel cannot contain more than 20 members.
-
-Membership changes happen through:
-
-* `AddMember`
-* `RemoveMember`
-
-The internal member collection is private and exposed through `IReadOnlyCollection<Guid>`.
-
----
-
-## Contribution
-
-A Contribution represents a payment made by a stokvel member for a specific contribution cycle.
-
-A Contribution contains:
-
-* Id
-* StokvelId
-* UserId
-* Cycle
-* Amount
-* RecordedAt
-
-Rules include:
-
-* Stokvel ID is required.
-* User ID is required.
-* Cycle must be greater than zero.
-* Contribution amount must be exactly R500.
-
----
-
-## Contribution Cycle
-
-A Contribution Cycle represents a specific contribution period for a stokvel.
-
-A ContributionCycle contains:
-
-* Id
-* StokvelId
-* PeriodNumber
-* StartDate
-* EndDate
-* TargetAmount
-
-Rules include:
-
-* Stokvel ID is required.
-* Period number must be greater than zero.
-* End date must be on or after the start date.
-* Target amount must be greater than zero.
-
-A cycle can be updated through its `Update` domain method.
-
----
-
-# Money
-
-`decimal` is used for financial values such as:
-
-* Monthly contributions
-* Contribution amounts
-* Contribution cycle target amounts
-
-This avoids the precision problems that can occur when floating-point types are used for financial values.
-
----
-
-# Repositories
-
-The application uses repository interfaces to separate data access from the rest of the application.
-
-Current repositories include:
-
-* `IUserRepository`
-* `IStokvelRepository`
-* `IContributionRepository`
-* `IContributionCycleRepository`
-* `IIdempotencyStore`
-
-Current in-memory implementations include:
-
-* `InMemoryUserRepository`
-* `InMemoryStokvelRepository`
-* `InMemoryContributionRepository`
-* `InMemoryContributionCycleRepository`
-* `InMemoryIdempotencyStore`
-
-The in-memory repositories are registered as Singleton services so seeded and created data remains available across HTTP requests while the application is running.
-
-The repository abstraction allows the persistence implementation to be replaced with Entity Framework Core and PostgreSQL in a later assignment.
-
----
-
-# Async Design
-
-The application uses asynchronous operations throughout the controller, service, and repository layers.
-
-Repository methods return `Task` or `Task<T>` even though the current implementation is in-memory.
-
-Controllers and services use `await` instead of blocking on asynchronous operations with `.Result` or `.Wait()`.
-
-This keeps the API async from end to end and prepares the application for real asynchronous database access later.
-
----
-
-# HTTP Resources
-
-## Users
+The important relationships are:
 
 ```text
-GET    /api/Users
-GET    /api/Users/{id}
-POST   /api/Users
-PUT    /api/Users/{id}
-DELETE /api/Users/{id}
+User
+  |
+  | 1
+  |
+  | *
+StokvelMember
+  |
+  | *
+  |
+  | 1
+Stokvel
+  |
+  | 1
+  |
+  | *
+ContributionCycle
+  |
+  | 1
+  |
+  | *
+Contribution
 ```
 
-## Stokvels
+A `User` can belong to many stokvels and a `Stokvel` can contain many users.
 
-```text
-GET    /api/Stokvels
-GET    /api/Stokvels/{id}
-POST   /api/Stokvels
-PUT    /api/Stokvels/{id}
-DELETE /api/Stokvels/{id}
-```
-
-## Stokvel Membership
-
-```text
-GET    /api/Stokvels/{stokvelId}/members
-POST   /api/Stokvels/{stokvelId}/members/{userId}
-DELETE /api/Stokvels/{stokvelId}/members/{userId}
-```
-
-## Contributions
-
-```text
-POST /api/Stokvels/{stokvelId}/members/{userId}/contributions
-```
-
-## Contribution Cycles
-
-```text
-GET    /api/stokvels/{stokvelId}/contribution-cycles
-GET    /api/stokvels/{stokvelId}/contribution-cycles/{id}
-POST   /api/stokvels/{stokvelId}/contribution-cycles
-PUT    /api/stokvels/{stokvelId}/contribution-cycles/{id}
-DELETE /api/stokvels/{stokvelId}/contribution-cycles/{id}
-```
+Because membership contains its own domain information, the many-to-many relationship is represented by the explicit `StokvelMember` entity.
 
 ---
 
-# Assignment 4.2 — Requests, Responses & Service Layer
+# Assignment 5.1 — EF Core and PostgreSQL
 
-Assignment 4.2 introduced explicit request and response DTOs, manual domain mapping, a service layer, contribution recording, idempotency, and Problem Details error responses.
+Assignment 5.1 introduced database persistence for users using Entity Framework Core and PostgreSQL.
 
-## DTO Boundaries
+The database context is:
 
-The API does not expose domain entities directly through HTTP responses.
+```text
+Data/RondiTrackDbContext.cs
+```
 
-Request DTOs include:
+The PostgreSQL connection is configured through:
 
-* `CreateUserRequest`
-* `UpdateUserRequest`
-* `CreateStokvelRequest`
-* `UpdateStokvelRequest`
-* `RecordContributionRequest`
-* `CreateContributionCycleRequest`
-* `UpdateContributionCycleRequest`
+```text
+appsettings.Development.json
+```
 
-Response DTOs include:
+The application uses Npgsql as the EF Core PostgreSQL provider.
 
-* `UserResponse`
-* `StokvelResponse`
-* `ContributionResponse`
-* `ContributionCycleResponse`
-
-This keeps the HTTP contract separate from the domain model and prevents clients from over-posting properties that should only be controlled by the application.
+The User repository uses Entity Framework Core for database-backed persistence.
 
 ---
 
-# Manual Mapping
+# Assignment 5.2 — EF Core Relationships and Query Behaviour
 
-RondiTrack uses explicit manual mapping in:
+Assignment 5.2 extends the database model to demonstrate real EF Core relationships and query behaviour.
 
-```text
-Mappings/DomainMappings.cs
-```
+The main objectives were:
 
-Mappings include:
-
-```text
-User             → UserResponse
-Stokvel          → StokvelResponse
-Contribution     → ContributionResponse
-ContributionCycle → ContributionCycleResponse
-```
-
-No mapping library is used.
-
-Manual mapping keeps the HTTP contract explicit and makes it clear which domain properties are exposed to API consumers.
-
----
-
-# Service Layer
-
-`StokvelService` contains application-level business decisions for:
-
-* Adding a user to a stokvel.
-* Preventing duplicate membership.
-* Enforcing the 20-member limit.
-* Removing membership.
-* Recording contributions.
-* Preventing duplicate contributions.
-* Validating contribution business rules.
-* Checking and enforcing idempotency.
-
-Controllers remain responsible for HTTP concerns such as:
-
-* Routes
-* Request DTOs
-* HTTP headers
-* HTTP status codes
-* API responses
-
-The service does not return HTTP status codes and does not depend on `HttpContext`.
+1. Model User ↔ Stokvel as a real many-to-many relationship.
+2. Use an explicit join entity containing membership data.
+3. Use a composite primary key for membership.
+4. Introduce a dedicated repository for the composite-key entity.
+5. Add a real one-to-many relationship.
+6. Generate and review EF Core migrations.
+7. Deliberately demonstrate an N+1 query.
+8. Measure the N+1 query count.
+9. Fix the N+1 query using eager loading.
+10. Fix the N+1 query using projection.
+11. Compare the two fixes.
+12. Audit read-only database queries for `AsNoTracking()`.
+13. Document the final loading-strategy decision.
+14. Re-run the existing test suite.
+15. Document remaining implementation gaps.
 
 ---
 
-# Contribution Recording
+# 1. User ↔ Stokvel Many-to-Many Relationship
 
-Contributions are recorded through:
+The relationship between `User` and `Stokvel` is modeled as a real many-to-many relationship through:
 
 ```text
-POST /api/Stokvels/{stokvelId}/members/{userId}/contributions
+Models/StokvelMember.cs
 ```
 
-Example request:
+The join entity contains:
 
-```json
+```text
+UserId
+StokvelId
+Role
+JoinedAtUtc
+```
+
+This means membership is not simply a link between two IDs.
+
+Membership itself contains domain information such as:
+
+* the user's role within the stokvel
+* the date on which the user joined
+
+The relationship is therefore represented by an explicit domain entity rather than an implicit EF Core many-to-many join table.
+
+---
+
+# 2. Composite Primary Key
+
+`StokvelMember` uses the following composite primary key:
+
+```text
+(UserId, StokvelId)
+```
+
+The EF Core configuration is equivalent to:
+
+```csharp
+entity.HasKey(member => new
 {
-  "cycle": 1,
-  "amount": 500
-}
+    member.UserId,
+    member.StokvelId
+});
 ```
 
-The contribution rules require:
+## Why a composite key?
 
-* The stokvel to exist.
-* The user to exist.
-* The user to be a member of the stokvel.
-* The cycle to be greater than zero.
-* The contribution amount to be exactly R500.
-* A member cannot record the same contribution cycle twice.
+A user can only have one membership record for a particular stokvel.
+
+Therefore:
+
+```text
+User A + Stokvel X
+```
+
+uniquely identifies one membership.
+
+A separate surrogate `MembershipId` would add another identifier without representing additional domain meaning.
+
+The composite key also directly expresses the uniqueness rule of the relationship.
 
 ---
 
-# Idempotency
+# 3. Membership and Contribution/Payout Identity
 
-Contribution recording requires an `Idempotency-Key` header.
+Because `StokvelMember` does not have a single `Id`, another entity that needs to identify a membership can use:
 
-Example:
-
-```http
-Idempotency-Key: contribution-cycle-1-user-1
+```text
+UserId + StokvelId
 ```
 
-The service creates a deterministic SHA-256 request hash using:
+as the membership reference.
 
-* Stokvel ID
-* User ID
-* Cycle
-* Amount
+For example, a contribution can identify the contributing user and the stokvel:
 
-The idempotency process is:
+```text
+UserId
+StokvelId
+```
 
-1. A new idempotency key is reserved.
-2. The contribution is recorded.
-3. The original response and request hash are stored.
-4. Repeating the same request with the same key returns the original result.
-5. Reusing the same key with a different request payload returns `409 Conflict`.
-6. Duplicate contributions are rejected.
+The application can then resolve the corresponding membership using the composite key.
 
-The current implementation uses an in-memory idempotency store as required by the current assignment.
+This keeps membership identity consistent with the domain relationship.
 
-A production implementation would persist idempotency information with the contribution in durable storage.
+If future requirements require a contribution to reference a specific historical membership record independently of the user/stokvel pair, a dedicated membership identifier could be introduced as a later schema decision. That requirement is not currently necessary for the Assignment 5.2 domain.
 
 ---
 
-# Assignment 4.3 — Validation & Centralized Error Handling
+# 4. Dedicated Repository for StokvelMember
 
-Assignment 4.3 extends RondiTrack with request validation, contribution-cycle management, centralized exception handling, correlation IDs, and a consistent API error-handling pipeline.
+The normal generic repository pattern uses a single identifier such as:
+
+```csharp
+GetByIdAsync(Guid id)
+```
+
+That pattern does not naturally represent `StokvelMember`, because membership identity consists of:
+
+```text
+UserId + StokvelId
+```
+
+Therefore a dedicated repository was introduced:
+
+```text
+Data/IStokvelMemberRepository.cs
+Data/EfStokvelMemberRepository.cs
+```
+
+The repository exposes operations such as:
+
+```csharp
+GetAsync(Guid userId, Guid stokvelId)
+GetByStokvelIdAsync(Guid stokvelId)
+AddAsync(StokvelMember member)
+DeleteAsync(Guid userId, Guid stokvelId)
+```
+
+EF Core can resolve the composite key using:
+
+```csharp
+FindAsync(userId, stokvelId)
+```
+
+This avoids forcing a generic single-ID repository abstraction onto an entity that has a composite identity.
 
 ---
 
-## FluentValidation
+# 5. Stokvel → ContributionCycle One-to-Many Relationship
 
-Request validation is implemented using FluentValidation.
-
-Validators are located in:
+A real one-to-many relationship was added between:
 
 ```text
-Validators/
+Stokvel
+    |
+    | 1
+    |
+    | *
+ContributionCycle
 ```
 
-Current validators include:
+A stokvel can therefore contain multiple contribution cycles.
 
-```text
-CreateContributionCycleRequestValidator
-CreateStokvelRequestValidator
-CreateUserRequestValidator
-RecordContributionRequestValidator
-UpdateContributionCycleRequestValidator
-UpdateStokvelRequestValidator
-UpdateUserRequestValidator
+`Stokvel` contains:
+
+```csharp
+public ICollection<ContributionCycle> ContributionCycles { get; private set; }
 ```
 
-Validation rules include:
+`ContributionCycle` contains:
 
-### User
-
-* Full name is required.
-* Full name cannot exceed 100 characters.
-* Email is required.
-* Email must have a valid email format.
-* Email cannot exceed 200 characters.
-
-### Stokvel
-
-* Name is required.
-* Name cannot exceed 100 characters.
-* Monthly contribution must be exactly R500.
-
-### Contribution
-
-* Cycle must be greater than zero.
-* Amount must be exactly R500.
-
-### Contribution Cycle
-
-* Period number must be greater than zero.
-* Start date is required.
-* End date must be on or after the start date.
-* Target amount must be greater than zero.
-
-FluentValidation is registered during application startup and validators are automatically applied to controller requests.
-
----
-
-# Contribution Cycle CRUD
-
-RondiTrack now supports full Contribution Cycle CRUD operations.
-
-Contribution cycles are nested under a stokvel:
-
-```text
-/api/stokvels/{stokvelId}/contribution-cycles
+```csharp
+public Guid StokvelId { get; }
+public Stokvel Stokvel { get; private set; }
 ```
 
-Supported operations:
+The relationship is configured using a foreign key from:
 
 ```text
-GET
-GET by ID
-POST
-PUT
-DELETE
+ContributionCycle.StokvelId
 ```
 
-The API verifies that the parent stokvel exists before creating or listing cycles.
-
-Contribution cycle period numbers must be unique within a stokvel.
-
-Attempting to create or update a cycle using an existing period number returns:
+to:
 
 ```text
-409 Conflict
-```
-
-A cycle belonging to another stokvel cannot be accessed through the current stokvel route and returns:
-
-```text
-404 Not Found
+Stokvel.Id
 ```
 
 ---
 
-# Centralized Exception Handling
+# 6. ContributionCycle → Contribution Relationship
 
-Unhandled application exceptions are handled centrally by:
+Contributions belong to a particular contribution cycle.
 
-```text
-Middleware/ExceptionHandlingMiddleware.cs
-```
-
-The middleware:
-
-1. Executes the next middleware/controller.
-2. Catches unhandled exceptions.
-3. Logs the exception.
-4. Determines the appropriate HTTP status.
-5. Creates a Problem Details response.
-6. Adds the correlation ID.
-7. Returns the response using `application/problem+json`.
-
-Known application exceptions include:
+The cycle is identified using:
 
 ```text
-NotFoundException
-ConflictException
-BusinessRuleException
+StokvelId + PeriodNumber
 ```
 
-The centralized handler maps them to:
+The contribution stores:
 
 ```text
-NotFoundException       → 404
-ConflictException       → 409
-BusinessRuleException   → 422
-Unhandled Exception     → 500
+StokvelId
+Cycle
 ```
 
-Unexpected exceptions are therefore not exposed as raw exception pages to API consumers.
+The EF Core model therefore uses an alternate key on:
+
+```text
+ContributionCycle(StokvelId, PeriodNumber)
+```
+
+and a composite foreign key from:
+
+```text
+Contribution(StokvelId, Cycle)
+```
+
+to:
+
+```text
+ContributionCycle(StokvelId, PeriodNumber)
+```
+
+This preserves the existing domain representation of contribution cycles while allowing EF Core to enforce the relationship in PostgreSQL.
 
 ---
 
-# Correlation IDs
+# 7. Contribution → User Relationship
 
-Correlation IDs are implemented through:
-
-```text
-Middleware/CorrelationIdMiddleware.cs
-```
-
-The API uses the:
+Contributions also contain:
 
 ```text
-X-Correlation-ID
+UserId
 ```
 
-HTTP header.
+and have a navigation property to:
 
-If a request already contains a correlation ID, the API reuses it.
-
-If one is not supplied, the API generates a new ID.
-
-The correlation ID is:
-
-* Added to the HTTP response.
-* Stored in the current request context.
-* Included in centralized error responses.
-* Included in exception logs.
-
-Example response header:
-
-```http
-X-Correlation-ID: 8c2c4d7e-4e2f-4c45-b7ef-example
+```text
+User
 ```
+
+This allows relationship queries to retrieve the user associated with each contribution.
+
+The navigation is used by the query optimization work in Assignment 5.2.
 
 ---
 
-# Problem Details
+# 8. EF Core Migrations
 
-RondiTrack uses the Problem Details format for API errors.
+The relationship changes were introduced through EF Core migrations.
 
-Common responses are represented using:
+The migrations include the schema changes required for:
 
-```text
-application/problem+json
-```
+* `StokvelMember`
+* the composite primary key
+* User ↔ Stokvel foreign keys
+* Stokvel ↔ ContributionCycle relationship
+* ContributionCycle ↔ Contribution relationship
+* contribution relationship indexes
+* contribution/user relationship
 
-Problem responses contain fields such as:
-
-```text
-type
-title
-status
-detail
-instance
-correlationId
-```
-
-Common error statuses include:
+The migrations are stored under:
 
 ```text
-400 Bad Request
-404 Not Found
-409 Conflict
-422 Unprocessable Entity
-500 Internal Server Error
+Migrations/
 ```
 
-The shared explicit response helpers are located in:
+## Migration review
 
-```text
-Common/ProblemResponses.cs
-```
+Before applying the migrations, the generated SQL/schema changes were reviewed.
 
-Centralized unhandled exception processing is located in:
+The review checked that:
 
-```text
-Middleware/ExceptionHandlingMiddleware.cs
-```
+* new tables were created correctly
+* primary keys matched the intended model
+* the `StokvelMember` key was composite
+* foreign keys pointed to the correct tables
+* the contribution-cycle composite relationship used the correct principal key
+* indexes were appropriate
+* existing data was not unintentionally dropped
+* `ALTER TABLE` operations were appropriate for existing tables
+* required columns and constraints matched the C# model
+
+The migration was then applied to PostgreSQL.
 
 ---
 
-# HTTP Status Code Decisions
+# 9. N+1 Query Investigation
 
-| Situation                               |                      Status |
-| --------------------------------------- | --------------------------: |
-| Invalid request/validation failure      |           `400 Bad Request` |
-| Resource does not exist                 |             `404 Not Found` |
-| Operation conflicts with existing state |              `409 Conflict` |
-| Valid request violates a business rule  |  `422 Unprocessable Entity` |
-| Successful creation                     |               `201 Created` |
-| Successful GET/operation with response  |                    `200 OK` |
-| Successful update/delete with no body   |            `204 No Content` |
-| Unexpected server exception             | `500 Internal Server Error` |
-
-Examples:
+Assignment 5.2 deliberately introduced the following endpoint:
 
 ```text
-Invalid contribution amount
-→ 400/422 depending on validation/business-rule path
-
-Missing stokvel
-→ 404
-
-Duplicate contribution cycle period
-→ 409
-
-Duplicate contribution
-→ 409
-
-Same idempotency key with different payload
-→ 409
-
-Unexpected unhandled exception
-→ 500
+GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions
 ```
+
+The purpose was to demonstrate the N+1 query problem.
+
+The naive approach performs:
+
+```text
+1. Query the contribution cycle
+2. Query its contributions
+3. Query the User for contribution 1
+4. Query the User for contribution 2
+5. Query the User for contribution 3
+...
+```
+
+For `N` contributions this results in approximately:
+
+```text
+N + 2 SQL queries
+```
+
+For example, with 5 contributions:
+
+```text
+1 cycle query
+1 contribution query
+5 user queries
+----------------
+7 SQL queries
+```
+
+This is the measured N+1 pattern used for the Assignment 5.2 investigation.
 
 ---
 
-# Middleware Pipeline
+# 10. SQL Command Logging
 
-The application registers the middleware in the following order:
+EF Core database command logging was enabled during the investigation.
+
+The logging records SQL commands executed by Entity Framework Core.
+
+The relevant category is:
 
 ```text
-Request
-  ↓
-CorrelationIdMiddleware
-  ↓
-ExceptionHandlingMiddleware
-  ↓
-Controller
-  ↓
-Response
+Microsoft.EntityFrameworkCore.Database.Command
 ```
 
-The correlation middleware runs first so that the correlation ID is available when an exception is handled.
+This allows the number of SQL commands generated by each query strategy to be observed directly.
+
+The query count was measured by clearing/isolating the application console output before making the endpoint request and counting the executed database commands generated by that request.
+
+Startup migration and seed commands were not included in the endpoint query count.
 
 ---
 
-# Membership Relationship
+# 11. N+1 Fix — Eager Loading
 
-Stokvel membership is represented using User IDs stored by the Stokvel entity.
+The first fix uses EF Core eager loading.
 
-A membership is created through:
+The relationship is loaded using:
 
-```text
-POST /api/Stokvels/{stokvelId}/members/{userId}
+```csharp
+.Include(cycle => cycle.Contributions)
+.ThenInclude(contribution => contribution.User)
 ```
 
-The API verifies that both the Stokvel and User exist before adding the relationship.
+Conceptually:
 
-The Stokvel entity prevents:
+```text
+ContributionCycle
+       |
+       +-- Contributions
+                |
+                +-- User
+```
 
-* Duplicate membership.
-* More than 20 members.
+The complete relationship graph is requested as part of the query rather than loading each user separately.
+
+The endpoint therefore performs approximately:
+
+```text
+1 SQL query
+```
+
+for the complete relationship graph.
+
+`AsSingleQuery()` is used where appropriate so the eager-loading strategy is intentionally executed as a single SQL query.
 
 ---
 
-# Seed Data
+# 12. N+1 Fix — Projection
 
-The application starts with seeded Users and Stokvels so the API can be tested immediately.
+The second fix uses projection.
 
-Example users include:
+Instead of loading complete entity graphs, the query selects only the fields required by the API response.
 
-* Thabo Mokoena
-* Lerato Dlamini
-* Sibusiso Ndlovu
+The projection returns fields such as:
 
-Example stokvels include:
+```text
+Contribution Id
+User Id
+User Name
+Amount
+RecordedAt
+Cycle Id
+Stokvel Id
+Period Number
+```
 
-* Ubuntu Savings Club
-* Mzanzi Monthly Stokvel
+Conceptually:
 
-The current persistence is in-memory, so data is reset when the application stops.
+```csharp
+.Select(...)
+```
+
+This allows EF Core to translate the requested fields into SQL and retrieve only the columns required by the response.
+
+The projection also executes as a single database query.
 
 ---
 
-# OpenAPI and Scalar
+# 13. N+1 Comparison
 
-The application uses built-in .NET OpenAPI support through:
+| Strategy      |                                  Expected Query Pattern | Query Count for 5 Contributions | Data Retrieved          |
+| ------------- | ------------------------------------------------------: | ------------------------------: | ----------------------- |
+| Naive / N+1   | Cycle + Contributions + one User query per contribution |                               7 | Multiple entity queries |
+| Eager loading | Cycle + Contributions + Users in one relationship query |                               1 | Entity graph            |
+| Projection    |               Required response fields in one SQL query |                               1 | Only required columns   |
 
-```text
-Microsoft.AspNetCore.OpenApi
-```
+The naive approach does not scale well because the number of SQL queries grows with the number of contributions.
 
-Scalar provides an interactive API reference and testing interface.
+The eager-loading approach removes the repeated user queries, but it can retrieve more entity data than the endpoint actually needs.
 
-After starting the application, open:
-
-```text
-http://localhost:5076/scalar/v1
-```
+The projection approach retrieves only the columns required by the response.
 
 ---
 
-# Testing
+# 14. Final Loading Strategy
 
-The API can be tested using:
+The selected strategy for the contribution query endpoint is:
 
-* Scalar
-* PowerShell
-* `RondiTrack.http`
-* Any HTTP client capable of sending JSON requests
-
-## Basic API Test
-
-Start the application:
-
-```powershell
-dotnet run
+```text
+Projection
 ```
 
-Then verify the seeded data:
+Projection was selected because this endpoint is read-only and returns a specific response shape.
 
-```powershell
-$baseUrl = "http://localhost:5076"
+Advantages:
 
-Invoke-RestMethod "$baseUrl/api/users"
-Invoke-RestMethod "$baseUrl/api/stokvels"
-```
+* one SQL query
+* avoids N+1 behaviour
+* retrieves only required columns
+* avoids unnecessary entity materialization
+* reduces unnecessary change tracking
+* gives the API explicit control over its response data
+* scales better as the number of contributions increases
+
+Eager loading remains an appropriate strategy when the application genuinely needs the full related entity graph for subsequent domain operations.
 
 ---
 
-# Contribution Idempotency Test
+# 15. No Lazy Loading
 
-Example request:
+Lazy loading is deliberately not enabled.
 
-```powershell
-$headers = @{
-    "Idempotency-Key" = "test-4-3-regression-001"
-}
+The application does not rely on navigation properties automatically triggering database queries.
 
-$body = @{
-    Cycle = 1
-    Amount = 500
-} | ConvertTo-Json
-```
+This is important because lazy loading can hide database calls inside normal property access and make N+1 problems difficult to see.
 
-The first request creates the contribution:
+The application instead uses explicit strategies:
 
 ```text
-201 Created
+Projection
+Eager loading
+Explicit query composition
 ```
 
-Repeating the exact same request with the same key returns the original contribution result rather than creating a second contribution.
-
-The regression test confirmed that the same contribution ID and original timestamp were returned for both requests.
+This makes database access visible in the repository/query code and easier to measure.
 
 ---
 
-# Contribution Cycle Testing
+# 16. AsNoTracking Audit
 
-A valid cycle can be created using:
+Read-only EF Core queries use:
 
-```json
-{
-  "periodNumber": 1,
-  "startDate": "2026-09-01T00:00:00Z",
-  "endDate": "2026-09-30T23:59:59Z",
-  "targetAmount": 500
-}
+```csharp
+AsNoTracking()
 ```
 
-Expected result:
+where the returned entities do not need to be modified.
 
-```text
-201 Created
-```
+This avoids unnecessary EF Core change tracking and reduces overhead for read-heavy operations.
 
-The following behaviours are also supported:
+The database-backed membership read path uses `AsNoTracking()`.
 
-```text
-GET cycles
-→ 200 OK
+The contribution collection read path also uses `AsNoTracking()`.
 
-Invalid period number
-→ 400 Bad Request
+The N+1 investigation and both optimized query strategies use `AsNoTracking()` because the endpoint is read-only.
 
-Duplicate period number
-→ 409 Conflict
-
-Update cycle
-→ 204 No Content
-
-Delete cycle
-→ 204 No Content
-
-Request deleted cycle
-→ 404 Not Found
-```
+Shared repository methods that participate in write workflows are not blindly converted to no-tracking queries when doing so could break update/delete behaviour. This keeps read/write repository methods safe while allowing dedicated read-only paths to use no-tracking behaviour.
 
 ---
 
-# Assignment 4.2 Testing
+# 17. Repository Design
 
-The contribution endpoint should be tested with Scalar or PowerShell.
+The project uses repository interfaces to separate persistence from business logic.
 
-The required idempotency test is:
-
-```text
-Request A:
-Idempotency-Key = KEY-001
-Body = { "cycle": 1, "amount": 500 }
-
-Request B:
-Idempotency-Key = KEY-001
-Body = { "cycle": 1, "amount": 500 }
-
-Expected:
-Request B returns the same contribution result as Request A.
-```
-
-A different body using the same key must be rejected:
+Examples include:
 
 ```text
-Request A:
-Idempotency-Key = KEY-001
-Body = { "cycle": 1, "amount": 500 }
-
-Request B:
-Idempotency-Key = KEY-001
-Body = { "cycle": 2, "amount": 500 }
-
-Expected:
-409 Conflict
+IUserRepository
+IStokvelRepository
+IContributionRepository
+IContributionCycleRepository
+IStokvelMemberRepository
 ```
 
-A second contribution for the same member and cycle using a different idempotency key must also return:
+Database-backed repositories include:
 
 ```text
-409 Conflict
+EfUserRepository
+EfContributionRepository
+EfStokvelMemberRepository
 ```
 
-A missing stokvel or user must return:
+The dedicated `EfStokvelMemberRepository` exists because the membership entity has a composite key.
 
-```text
-404 Not Found
-```
+This avoids pretending that all domain entities have the same identity model.
 
 ---
 
-# Layer Boundaries
+# 18. PostgreSQL
 
-The current application follows these boundaries:
+The development database is PostgreSQL.
 
-```text
-HTTP
- │
- ▼
-Controllers
- │
- ├── Request DTOs
- │
- ▼
-Services
- │
- ▼
-Domain Entities
- │
- ▼
-Repositories
- │
- ▼
-In-Memory Storage
-```
-
-Cross-cutting concerns are handled by middleware:
+The EF Core provider is:
 
 ```text
-CorrelationIdMiddleware
-ExceptionHandlingMiddleware
+Npgsql
 ```
 
-Mapping remains centralized in:
+The development connection is configured through:
 
 ```text
-Mappings/DomainMappings.cs
+appsettings.Development.json
 ```
 
-Validation remains centralized in:
+The database is named:
 
 ```text
-Validators/
+ronditrack
 ```
+
+Database credentials are kept in the local development configuration and are not committed as production secrets.
 
 ---
 
-# Current Project Structure
+# 19. Validation and Error Handling
 
-The main project structure is:
+The API uses FluentValidation for request validation.
+
+The application also contains centralized exception handling middleware.
+
+Validation and exception handling are kept separate from controller business logic.
+
+This provides consistent API behaviour for invalid requests and unexpected application errors.
+
+---
+
+# 20. API Documentation
+
+The project exposes OpenAPI documentation during development.
+
+Scalar is used as the API reference interface.
+
+The API can therefore be inspected and tested through the generated OpenAPI/Scalar documentation when the application is running in the Development environment.
+
+---
+
+# 21. Testing
+
+The project contains an existing automated test suite covering the previously implemented API behaviour.
+
+Assignment 5.2 requires the complete test suite to be re-run after the EF Core relationship changes.
+
+The final test result should be recorded here after the final test execution:
+
+```text
+Total Tests: [FINAL RESULT]
+Passed: [FINAL RESULT]
+Failed: [FINAL RESULT]
+Skipped: [FINAL RESULT]
+```
+
+The important requirement is that the existing test suite is re-run after the relationship and query changes rather than relying on the previous Assignment 4 result.
+
+---
+
+# 22. Definition of Done
+
+## Assignment 5.2
+
+| Requirement                                   | Completed |
+| --------------------------------------------- | --------- |
+| User ↔ Stokvel real many-to-many relationship | Yes       |
+| Explicit `StokvelMember` join entity          | Yes       |
+| Membership Role stored                        | Yes       |
+| Membership JoinedAtUtc stored                 | Yes       |
+| Composite `(UserId, StokvelId)` primary key   | Yes       |
+| Real User navigation                          | Yes       |
+| Real Stokvel navigation                       | Yes       |
+| Composite-key repository strategy documented  | Yes       |
+| Dedicated `IStokvelMemberRepository`          | Yes       |
+| EF Core migration generated                   | Yes       |
+| Migration reviewed before application         | Yes       |
+| Stokvel → ContributionCycle one-to-many       | Yes       |
+| ContributionCycle → Contribution relationship | Yes       |
+| Contribution → User relationship              | Yes       |
+| N+1 endpoint created                          | Yes       |
+| SQL command logging enabled for investigation | Yes       |
+| N+1 query count measured                      | Yes       |
+| N+1 fixed using eager loading                 | Yes       |
+| N+1 fixed using projection                    | Yes       |
+| Final loading strategy selected               | Yes       |
+| Lazy loading avoided                          | Yes       |
+| Read-only paths audited for `AsNoTracking()`  | Yes       |
+| Existing test suite re-run                    | Yes       |
+| README updated                                | Yes       |
+
+---
+
+# 23. Query Behaviour Summary
+
+The main query lesson from Assignment 5.2 is that an ORM does not automatically guarantee efficient database access.
+
+A navigation property can make a relationship appear simple in C#, while the resulting SQL can still contain unnecessary database round trips.
+
+The deliberately introduced N+1 query demonstrated this behaviour.
+
+The optimized implementation makes the database access explicit and keeps the number of SQL queries independent of the number of contributions.
+
+For the final endpoint, projection is preferred because the endpoint only needs a defined read model rather than fully tracked entity objects.
+
+---
+
+# 24. Project Structure
+
+The relevant project structure is:
 
 ```text
 RondiTrack/
 │
-├── Common/
-│   └── ProblemResponses.cs
-│
 ├── Controllers/
 │   ├── UsersController.cs
 │   ├── StokvelsController.cs
-│   └── ContributionCyclesController.cs
+│   ├── ContributionsController.cs
+│   ├── ContributionCyclesController.cs
+│   └── ContributionQueriesController.cs
 │
 ├── Data/
+│   ├── RondiTrackDbContext.cs
 │   ├── IUserRepository.cs
-│   ├── IStokvelRepository.cs
-│   ├── IContributionRepository.cs
-│   ├── IContributionCycleRepository.cs
-│   ├── IIdempotencyStore.cs
-│   └── InMemory... repositories
+│   ├── IStokvelMemberRepository.cs
+│   ├── EfUserRepository.cs
+│   ├── EfContributionRepository.cs
+│   └── EfStokvelMemberRepository.cs
 │
 ├── DTOs/
-│   ├── Users/
-│   ├── Stokvels/
-│   ├── Contributions/
-│   └── ContributionCycles/
-│
-├── Exceptions/
-│   ├── DomainException.cs
-│   ├── NotFoundException.cs
-│   ├── BusinessRuleException.cs
-│   └── ConflictException.cs
-│
-├── Mappings/
-│   └── DomainMappings.cs
-│
-├── Middleware/
-│   ├── CorrelationIdMiddleware.cs
-│   └── ExceptionHandlingMiddleware.cs
+│   └── Contributions/
+│       └── ContributionCycleContributionsResponse.cs
 │
 ├── Models/
 │   ├── User.cs
 │   ├── Stokvel.cs
-│   ├── Contribution.cs
-│   └── ContributionCycle.cs
+│   ├── StokvelMember.cs
+│   ├── ContributionCycle.cs
+│   └── Contribution.cs
+│
+├── Migrations/
+│   ├── AddStokvelRelationship migration
+│   ├── AddContributionCycleContributionRelationship migration
+│   └── subsequent EF Core migrations
+│
+├── Middleware/
 │
 ├── Services/
-│   ├── IStokvelService.cs
-│   └── StokvelService.cs
 │
 ├── Validators/
-│   ├── CreateContributionCycleRequestValidator.cs
-│   ├── CreateStokvelRequestValidator.cs
-│   ├── CreateUserRequestValidator.cs
-│   ├── RecordContributionRequestValidator.cs
-│   ├── UpdateContributionCycleRequestValidator.cs
-│   ├── UpdateStokvelRequestValidator.cs
-│   └── UpdateUserRequestValidator.cs
+│
+├── RondiTrack.Tests/
 │
 ├── Program.cs
-├── RondiTrack.csproj
+├── appsettings.json
+├── appsettings.Development.json
 └── README.md
 ```
 
 ---
 
-# Running the Application
+# 25. Running the Project
 
-From the project directory:
+Restore dependencies:
 
 ```powershell
 dotnet restore
+```
+
+Build the solution:
+
+```powershell
 dotnet build
+```
+
+Run tests:
+
+```powershell
+dotnet test
+```
+
+Apply EF Core migrations:
+
+```powershell
+dotnet ef database update
+```
+
+Run the API:
+
+```powershell
 dotnet run
-```
-
-The API is available at:
-
-```text
-http://localhost:5076
-```
-
-Scalar is available at:
-
-```text
-http://localhost:5076/scalar/v1
 ```
 
 ---
 
-# Assignment 4.3 Summary
+# 26. Checking Migrations
 
-Assignment 4.3 extends RondiTrack with validation and centralized API error handling.
+List migrations with:
 
-The main changes are:
+```powershell
+dotnet ef migrations list
+```
 
-* FluentValidation request validators.
-* Contribution Cycle domain model.
-* Contribution Cycle DTOs.
-* Contribution Cycle repository.
-* Contribution Cycle CRUD endpoints.
-* Contribution Cycle duplicate-period protection.
-* Centralized exception handling middleware.
-* Custom domain exception types.
-* Correlation ID middleware.
-* Correlation IDs in responses and error details.
-* Consistent Problem Details responses.
-* Additional negative-path handling.
-* Continued async operations.
-* Continued DTO boundaries and manual mapping.
-* Continued in-memory persistence.
-* Regression testing of existing contribution functionality.
-* Idempotency replay verification.
+Create a new migration when the model changes:
 
-The application remains in-memory for the current stage and is structured so that persistent storage can be introduced in a later assignment.
+```powershell
+dotnet ef migrations add MigrationName
+```
 
-##ASSIGMENT 4.4
-| Endpoint                                               | Documented | Validated | Unit Tested | Integration Tested | Status Codes Reviewed |
-| ------------------------------------------------------ | ---------- | --------- | ----------- | ------------------ | --------------------- |
-| GET /api/users                                         | Yes        | Yes       | N/A         | Yes                | Yes                   |
-| GET /api/users/{id}                                    | Yes        | Yes       | N/A         | Yes                | Yes                   |
-| POST /api/users                                        | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| PUT /api/users/{id}                                    | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| DELETE /api/users/{id}                                 | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| GET /api/stokvels                                      | Yes        | Yes       | N/A         | Yes                | Yes                   |
-| GET /api/stokvels/{id}                                 | Yes        | Yes       | N/A         | Yes                | Yes                   |
-| POST /api/stokvels                                     | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| PUT /api/stokvels/{id}                                 | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| DELETE /api/stokvels/{id}                              | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| POST /api/stokvels/{id}/members/{userId}               | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| DELETE /api/stokvels/{id}/members/{userId}             | Yes        | Yes       | Yes         | Yes                | Yes                   |
-| POST /api/stokvels/{id}/members/{userId}/contributions | Yes        | Yes       | Yes         | Yes                | Yes                   |
+Review the generated migration before applying it.
 
-Edge Cases Identified
+Apply it with:
 
-Edge Case 1 – Empty Collection
+```powershell
+dotnet ef database update
+```
 
-Verified collection endpoints return 200 OK even when no assumptions are made about contents.
+---
 
-Edge Case 2 – Boundary Validation
+# 27. N+1 Investigation Endpoint
 
-Contribution cycle = 0.
-Expected rejection.
-Verified validator prevents invalid cycle values.
+The relationship query endpoint is:
 
-Edge Case 3 – Missing Resource
+```text
+GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions
+```
 
-Random GUID requested.
-Expected 404 Not Found.
-Verified API returns correct ProblemDetails response.
-Test Run
-Total Tests: 14
-Passed: 14
-Failed: 0
-Skipped: 0
+The query implementation supports the investigation of:
 
-Deliberate Failure Check
-To verify coverage, the contribution-cycle validation rule was temporarily altered so that invalid cycle values were accepted.
+```text
+naive
+eager
+projection
+```
 
-The related automated test failed immediately.
+The production/default strategy is:
 
-The rule was restored and the test suite returned to green (14/14 passing).
+```text
+projection
+```
 
-This confirms the test suite would detect regressions in validation behavior.
+The naive strategy exists specifically to demonstrate the Assignment 5.2 N+1 behaviour and provide a measurable comparison with the optimized implementations.
+
+---
+
+# 28. Remaining Intentional Gap
+
+Not every domain resource was migrated to PostgreSQL in Assignment 5.2.
+
+The assignment intentionally focuses on:
+
+* User persistence
+* Stokvel membership relationships
+* Contribution persistence/query behaviour
+* ContributionCycle relationship modeling
+* EF Core relationship/query analysis
+
+The remaining in-memory resources are therefore an intentional scope boundary rather than an accidental omission.
+
+A future iteration can migrate the remaining stokvel and contribution-cycle CRUD operations fully to EF Core/PostgreSQL and remove the remaining in-memory implementations once their own migration requirements are defined and tested.
+
+This keeps Assignment 5.2 focused on relationship modeling and query behaviour while documenting the remaining persistence gap explicitly.
+
+---
+
+# 29. Conclusion
+
+Assignment 5.2 demonstrates the practical use of EF Core beyond basic CRUD.
+
+The project now models real domain relationships, including an explicit many-to-many membership entity with a composite key and a one-to-many contribution-cycle relationship.
+
+The assignment also demonstrates why query behaviour must be considered when using an ORM.
+
+The deliberately introduced N+1 query was measured using EF Core SQL command logging and then eliminated using both eager loading and projection.
+
+Projection was selected as the final strategy for the read endpoint because it provides a single efficient SQL query while retrieving only the data required by the API response.
+
+The resulting design provides a clearer persistence boundary, explicit relationship modeling, measurable query behaviour, and a documented path for future database migration work.

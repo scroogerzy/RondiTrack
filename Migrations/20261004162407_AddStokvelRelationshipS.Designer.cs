@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RondiTrack.Data;
@@ -11,9 +12,11 @@ using RondiTrack.Data;
 namespace RondiTrack.Migrations
 {
     [DbContext(typeof(RondiTrackDbContext))]
-    partial class RondiTrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261004162407_AddStokvelRelationshipS")]
+    partial class AddStokvelRelationshipS
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -22,36 +25,10 @@ namespace RondiTrack.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("RondiTrack.Models.Contribution", b =>
-                {
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasColumnType("numeric");
-
-                    b.Property<int>("Cycle")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("RecordedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("StokvelId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("StokvelId", "Cycle");
-
-                    b.ToTable("Contributions");
-                });
-
             modelBuilder.Entity("RondiTrack.Models.ContributionCycle", b =>
                 {
                     b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("EndDate")
@@ -71,7 +48,9 @@ namespace RondiTrack.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("ContributionCycles");
+                    b.HasIndex("StokvelId");
+
+                    b.ToTable("ContributionCycle");
                 });
 
             modelBuilder.Entity("RondiTrack.Models.Stokvel", b =>
@@ -135,18 +114,6 @@ namespace RondiTrack.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("RondiTrack.Models.Contribution", b =>
-                {
-                    b.HasOne("RondiTrack.Models.ContributionCycle", "ContributionCycle")
-                        .WithMany("Contributions")
-                        .HasForeignKey("StokvelId", "Cycle")
-                        .HasPrincipalKey("StokvelId", "PeriodNumber")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("ContributionCycle");
-                });
-
             modelBuilder.Entity("RondiTrack.Models.ContributionCycle", b =>
                 {
                     b.HasOne("RondiTrack.Models.Stokvel", "Stokvel")
@@ -175,11 +142,6 @@ namespace RondiTrack.Migrations
                     b.Navigation("Stokvel");
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("RondiTrack.Models.ContributionCycle", b =>
-                {
-                    b.Navigation("Contributions");
                 });
 
             modelBuilder.Entity("RondiTrack.Models.Stokvel", b =>

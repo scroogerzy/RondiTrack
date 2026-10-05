@@ -81,4 +81,14 @@ public class Stokvel
 
         MonthlyContribution = monthlyContribution;
     }
+
+    // A Stokvel has many memberships.
+    // Membership-specific information such as Role and JoinedAtUtc
+    // belongs to StokvelMember rather than directly to User or Stokvel.
+ public ICollection<StokvelMember> Members { get; private set; }
+    = new List<StokvelMember>();
+
+    // A stokvel can contain many contribution cycles.
+      public ICollection<ContributionCycle> ContributionCycles { get; private set; }
+    = new List<ContributionCycle>();
 }
