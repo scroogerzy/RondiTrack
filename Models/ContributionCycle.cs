@@ -16,7 +16,11 @@ public class ContributionCycle
     public DateTime EndDate { get; private set; }
 
     public decimal TargetAmount { get; private set; }
-
+// Navigation back to the parent stokvel.
+public Stokvel Stokvel { get; private set; } = null!;
+// A contribution cycle contains the contributions recorded for that period.
+public ICollection<Contribution> Contributions { get; private set; }
+    = new List<Contribution>();
     public ContributionCycle(
         Guid stokvelId,
         int periodNumber,

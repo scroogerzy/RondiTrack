@@ -36,11 +36,16 @@ builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 builder.Services.AddSingleton<IStokvelRepository, InMemoryStokvelRepository>();
 builder.Services.AddSingleton<IContributionRepository, InMemoryContributionRepository>();
 builder.Services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
-builder.Services.AddSingleton<IContributionCycleRepository, InMemoryContributionCycleRepository>();
+// Contributions are database-backed so relationship queries execute against PostgreSQL.
+builder.Services.AddScoped<IContributionRepository, EfContributionRepository>();
 
 // The service contains business logic but does not maintain request state.
 builder.Services.AddScoped<IStokvelService, StokvelService>();
-
+// Membership persistence uses a dedicated repository because
+// StokvelMember is identified by a composite primary key.
+builder.Services.AddScoped<
+    IStokvelMemberRepository,
+    EfStokvelMemberRepository>();
 var app = builder.Build();
 // Apply pending EF Core migrations and seed the database during startup.
 // The seed checks for existing Users first so restarting the API does

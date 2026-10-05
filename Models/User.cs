@@ -12,6 +12,11 @@ public class User
 
     public string Email { get; private set; } = null!;
 
+// A User can participate in multiple stokvels.
+// StokvelMember stores the additional data about each membership.
+
+public ICollection<StokvelMember> StokvelMemberships { get; private set; }
+    = new List<StokvelMember>();
     public User(string fullName, string email)
     {
         // Invalid users should never exist.
