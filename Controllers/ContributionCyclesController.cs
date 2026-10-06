@@ -6,19 +6,19 @@ using RondiTrack.Mappings;
 using RondiTrack.Models;
 
 namespace RondiTrack.Controllers;
+
 /// <summary>
-/// Creates a new user.
+/// Manages contribution cycles for stokvels.
 /// </summary>
-/// <response code="201">User created.</response>
-/// <response code="400">Validation failed.</response>
-[ProducesResponseType(typeof(DTOs.Users.UserResponse), StatusCodes.Status201Created)]
-[ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
-[Route("api/stokvels/{stokvelId:guid}/contribution-cycles")]
+[Route("api/stokvels/{stokvelId:guid}/cycles")]
 public class ContributionCyclesController : ControllerBase
 {
-    private readonly IContributionCycleRepository _cycleRepository;
-    private readonly IStokvelRepository _stokvelRepository;
+    private readonly IContributionCycleRepository
+        _cycleRepository;
+
+    private readonly IStokvelRepository
+        _stokvelRepository;
 
     public ContributionCyclesController(
         IContributionCycleRepository cycleRepository,
@@ -29,42 +29,33 @@ public class ContributionCyclesController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<ContributionCycleResponse>>>
-        GetCyclesAsync(Guid stokvelId)
+    public async Task<ActionResult<
+        IEnumerable<ContributionCycleResponse>>>
+        GetCycles(Guid stokvelId)
     {
-        var stokvel =
-            await _stokvelRepository.GetByIdAsync(stokvelId);
-
-        if (stokvel is null)
-        {
-            return ProblemResponses.NotFound(
-                $"Stokvel '{stokvelId}' was not found.",
-                HttpContext.Request.Path);
-        }
-
         var cycles =
-            await _cycleRepository.GetByStokvelAsync(stokvelId);
+            await _cycleRepository
+                .GetByStokvelAsync(stokvelId);
 
-        var response = cycles
-            .Select(cycle => cycle.ToResponse())
-            .ToList();
-
-        return Ok(response);
+        return Ok(
+            cycles.Select(c => c.ToResponse()));
     }
 
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<ContributionCycleResponse>>
-        GetCycleByIdAsync(
+    [HttpGet("{cycleId:guid}")]
+    public async Task<ActionResult<
+        ContributionCycleResponse>>
+        GetCycle(
             Guid stokvelId,
-            Guid id)
+            Guid cycleId)
     {
         var cycle =
-            await _cycleRepository.GetByIdAsync(id);
+            await _cycleRepository
+                .GetByIdAsync(cycleId);
 
-        if (cycle is null || cycle.StokvelId != stokvelId)
+        if (cycle is null)
         {
             return ProblemResponses.NotFound(
-                $"Contribution cycle '{id}' was not found.",
+                $"Contribution cycle '{cycleId}' was not found.",
                 HttpContext.Request.Path);
         }
 
@@ -72,13 +63,15 @@ public class ContributionCyclesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<ActionResult<ContributionCycleResponse>>
-        CreateCycleAsync(
+    public async Task<ActionResult<
+        ContributionCycleResponse>>
+        CreateCycle(
             Guid stokvelId,
             CreateContributionCycleRequest request)
     {
         var stokvel =
-            await _stokvelRepository.GetByIdAsync(stokvelId);
+            await _stokvelRepository
+                .GetByIdAsync(stokvelId);
 
         if (stokvel is null)
         {
@@ -87,111 +80,70 @@ public class ContributionCyclesController : ControllerBase
                 HttpContext.Request.Path);
         }
 
-        var existingCycle =
-            await _cycleRepository.GetByStokvelAndPeriodAsync(
+        var cycle = new ContributionCycle(
+            stokvelId,
+            request.PeriodNumber,
+            request.StartDate,
+            request.EndDate,
+            request.TargetAmount);
+
+        await _cycleRepository.AddAsync(cycle);
+
+        return CreatedAtAction(
+            nameof(GetCycle),
+            new
+            {
                 stokvelId,
-                request.PeriodNumber);
-
-        if (existingCycle is not null)
-        {
-            return ProblemResponses.Conflict(
-                $"Contribution cycle period '{request.PeriodNumber}' already exists for stokvel '{stokvelId}'.",
-                HttpContext.Request.Path);
-        }
-
-        try
-        {
-            var cycle = new ContributionCycle(
-                stokvelId,
-                request.PeriodNumber,
-                request.StartDate,
-                request.EndDate,
-                request.TargetAmount);
-
-            await _cycleRepository.AddAsync(cycle);
-
-            return CreatedAtAction(
-                nameof(GetCycleByIdAsync),
-                new
-                {
-                    stokvelId,
-                    id = cycle.Id
-                },
-                cycle.ToResponse());
-        }
-        catch (ArgumentException ex)
-        {
-            return ProblemResponses.BadRequest(
-                ex.Message,
-                HttpContext.Request.Path);
-        }
+                cycleId = cycle.Id
+            },
+            cycle.ToResponse());
     }
 
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> UpdateCycleAsync(
-        Guid stokvelId,
-        Guid id,
-        UpdateContributionCycleRequest request)
+    [HttpPut("{cycleId:guid}")]
+    public async Task<IActionResult>
+        UpdateCycle(
+            Guid stokvelId,
+            Guid cycleId,
+            UpdateContributionCycleRequest request)
     {
         var cycle =
-            await _cycleRepository.GetByIdAsync(id);
+            await _cycleRepository
+                .GetByIdAsync(cycleId);
 
-        if (cycle is null || cycle.StokvelId != stokvelId)
+        if (cycle is null)
         {
             return ProblemResponses.NotFound(
-                $"Contribution cycle '{id}' was not found.",
+                $"Contribution cycle '{cycleId}' was not found.",
                 HttpContext.Request.Path);
         }
 
-        var existingCycle =
-            await _cycleRepository.GetByStokvelAndPeriodAsync(
-                stokvelId,
-                request.PeriodNumber);
+        cycle.Update(
+            request.PeriodNumber,
+            request.StartDate,
+            request.EndDate,
+            request.TargetAmount);
 
-        if (existingCycle is not null &&
-            existingCycle.Id != id)
-        {
-            return ProblemResponses.Conflict(
-                $"Contribution cycle period '{request.PeriodNumber}' already exists for stokvel '{stokvelId}'.",
-                HttpContext.Request.Path);
-        }
+        await _cycleRepository.UpdateAsync(cycle);
 
-        try
-        {
-            cycle.Update(
-                request.PeriodNumber,
-                request.StartDate,
-                request.EndDate,
-                request.TargetAmount);
-
-            await _cycleRepository.UpdateAsync(cycle);
-
-            return NoContent();
-        }
-        catch (ArgumentException ex)
-        {
-            return ProblemResponses.BadRequest(
-                ex.Message,
-                HttpContext.Request.Path);
-        }
+        return NoContent();
     }
 
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> DeleteCycleAsync(
-        Guid stokvelId,
-        Guid id)
+    [HttpDelete("{cycleId:guid}")]
+    public async Task<IActionResult>
+        DeleteCycle(
+            Guid stokvelId,
+            Guid cycleId)
     {
-        var cycle =
-            await _cycleRepository.GetByIdAsync(id);
+        var deleted =
+            await _cycleRepository
+                .DeleteAsync(cycleId);
 
-        if (cycle is null || cycle.StokvelId != stokvelId)
+        if (!deleted)
         {
             return ProblemResponses.NotFound(
-                $"Contribution cycle '{id}' was not found.",
+                $"Contribution cycle '{cycleId}' was not found.",
                 HttpContext.Request.Path);
         }
-
-        await _cycleRepository.DeleteAsync(id);
 
         return NoContent();
     }
