@@ -34,7 +34,6 @@ builder.Services.AddScoped<IUserRepository, EfUserRepository>();
 
 // These repositories remain in-memory for Assignment 5.1.
 builder.Services.AddSingleton<IStokvelRepository, InMemoryStokvelRepository>();
-builder.Services.AddSingleton<IContributionRepository, InMemoryContributionRepository>();
 builder.Services.AddSingleton<IIdempotencyStore, InMemoryIdempotencyStore>();
 // Contributions are database-backed so relationship queries execute against PostgreSQL.
 builder.Services.AddScoped<IContributionRepository, EfContributionRepository>();

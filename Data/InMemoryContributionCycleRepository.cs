@@ -2,43 +2,44 @@ using RondiTrack.Models;
 
 namespace RondiTrack.Data;
 
+/// <summary>
+/// In-memory repository used during testing.
+/// </summary>
 public class InMemoryContributionCycleRepository
     : IContributionCycleRepository
 {
     private readonly List<ContributionCycle> _cycles = new();
 
-    public Task<IEnumerable<ContributionCycle>> GetByStokvelAsync(
-        Guid stokvelId)
+    public Task<IEnumerable<ContributionCycle>>
+        GetByStokvelAsync(Guid stokvelId)
     {
-        var cycles = _cycles
+        var result = _cycles
             .Where(c => c.StokvelId == stokvelId)
-            .OrderBy(c => c.PeriodNumber)
             .ToList();
 
-        return Task.FromResult<IEnumerable<ContributionCycle>>(cycles);
+        return Task.FromResult<IEnumerable<ContributionCycle>>(result);
     }
 
-    public Task<ContributionCycle?> GetByIdAsync(
-        Guid id)
+    public Task<ContributionCycle?>
+        GetByIdAsync(Guid id)
     {
-        var cycle = _cycles.FirstOrDefault(c => c.Id == id);
-
-        return Task.FromResult(cycle);
+        return Task.FromResult(
+            _cycles.FirstOrDefault(c => c.Id == id));
     }
 
-    public Task<ContributionCycle?> GetByStokvelAndPeriodAsync(
-        Guid stokvelId,
-        int periodNumber)
+    public Task<ContributionCycle?>
+        GetByStokvelAndPeriodAsync(
+            Guid stokvelId,
+            int periodNumber)
     {
-        var cycle = _cycles.FirstOrDefault(c =>
-            c.StokvelId == stokvelId &&
-            c.PeriodNumber == periodNumber);
-
-        return Task.FromResult(cycle);
+        return Task.FromResult(
+            _cycles.FirstOrDefault(c =>
+                c.StokvelId == stokvelId &&
+                c.PeriodNumber == periodNumber));
     }
 
-    public Task<ContributionCycle> AddAsync(
-        ContributionCycle cycle)
+    public Task<ContributionCycle>
+        AddAsync(ContributionCycle cycle)
     {
         _cycles.Add(cycle);
 
@@ -54,7 +55,8 @@ public class InMemoryContributionCycleRepository
     public Task<bool> DeleteAsync(
         Guid id)
     {
-        var cycle = _cycles.FirstOrDefault(c => c.Id == id);
+        var cycle =
+            _cycles.FirstOrDefault(c => c.Id == id);
 
         if (cycle is null)
             return Task.FromResult(false);

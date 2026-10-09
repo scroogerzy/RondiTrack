@@ -5,9 +5,9 @@ namespace RondiTrack.Models;
 /// </summary>
 public class ContributionCycle
 {
-    public Guid Id { get; }
+    public Guid Id { get; private set; }
 
-    public Guid StokvelId { get; }
+    public Guid StokvelId { get; private set; }
 
     public int PeriodNumber { get; private set; }
 
@@ -82,4 +82,10 @@ public ICollection<Contribution> Contributions { get; private set; }
         EndDate = endDate;
         TargetAmount = targetAmount;
     }
+
+    // EF Core uses this constructor when materializing
+// an existing contribution cycle from PostgreSQL.
+private ContributionCycle()
+{
+}
 }
