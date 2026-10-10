@@ -6,4 +6,5 @@ namespace RondiTrack.DTOs.Users;
 public record UserResponse(
     Guid Id,
     string FullName,
-    string Email);
+    string Email,
+    uint Version);

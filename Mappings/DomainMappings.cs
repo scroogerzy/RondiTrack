@@ -19,7 +19,8 @@ public static class DomainMappings
         return new UserResponse(
             user.Id,
             user.FullName,
-            user.Email);
+            user.Email,
+            user.Version);
     }
 
     /// <summary>
@@ -32,7 +33,8 @@ public static class DomainMappings
             stokvel.Id,
             stokvel.Name,
             stokvel.MonthlyContribution,
-            stokvel.MemberIds.Count);
+            stokvel.MemberIds.Count,
+            stokvel.Version);
     }
 
     /// <summary>
@@ -60,6 +62,7 @@ public static class DomainMappings
         cycle.PeriodNumber,
         cycle.StartDate,
         cycle.EndDate,
-        cycle.TargetAmount);
+        cycle.TargetAmount,
+        cycle.Version);
 }
 }

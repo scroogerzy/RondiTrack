@@ -1,3 +1,4 @@
+
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <PropertyGroup>
@@ -7,6 +8,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="10.0.12" />
     <PackageReference Include="FluentValidation.AspNetCore" Version="11.3.1" />
     <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="10.0.12" />
     <PackageReference Include="Microsoft.EntityFrameworkCore" Version="10.0.12" />
@@ -18,14 +20,12 @@
     <PackageReference Include="Scalar.AspNetCore" Version="2.17.6" />
   </ItemGroup>
 
-  <!--
-    The test project lives inside the repository, but it must NOT
-    be compiled as part of the production API project.
-    It is built separately as RondiTrack.Tests.
-  -->
+  <!-- Exclude the nested test project from the production API project. -->
   <ItemGroup>
     <Compile Remove="RondiTrack.Tests\**" />
     <EmbeddedResource Remove="RondiTrack.Tests\**" />
+    <Content Remove="RondiTrack.Tests\**" />
     <None Remove="RondiTrack.Tests\**" />
   </ItemGroup>
+
 </Project>

@@ -79,4 +79,36 @@ public class EfContributionCycleRepository
 
         return true;
     }
+    public async Task<IReadOnlyList<ContributionCycle>> GetPageByStokvelAsync(
+        Guid stokvelId,
+        ContributionCyclePageQuery query)
+    {
+        IQueryable<ContributionCycle> cycles = _dbContext.ContributionCycles
+            .AsNoTracking()
+            .Where(cycle => cycle.StokvelId == stokvelId);
+
+        if (query.LastPeriodNumber.HasValue && query.LastId.HasValue)
+        {
+            var lastPeriodNumber = query.LastPeriodNumber.Value;
+            var lastId = query.LastId.Value;
+            cycles = query.Descending
+                ? cycles.Where(cycle =>
+                    cycle.PeriodNumber < lastPeriodNumber ||
+                    (cycle.PeriodNumber == lastPeriodNumber &&
+                     cycle.Id.CompareTo(lastId) < 0))
+                : cycles.Where(cycle =>
+                    cycle.PeriodNumber > lastPeriodNumber ||
+                    (cycle.PeriodNumber == lastPeriodNumber &&
+                     cycle.Id.CompareTo(lastId) > 0));
+        }
+
+        cycles = query.Descending
+            ? cycles.OrderByDescending(cycle => cycle.PeriodNumber)
+                .ThenByDescending(cycle => cycle.Id)
+            : cycles.OrderBy(cycle => cycle.PeriodNumber)
+                .ThenBy(cycle => cycle.Id);
+
+        return await cycles.Take(query.PageSize + 1).ToListAsync();
+    }
+
 }

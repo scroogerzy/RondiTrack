@@ -44,4 +44,47 @@ public class EfContributionRepository : IContributionRepository
             .AsNoTracking()
             .ToListAsync();
     }
+    public async Task<IReadOnlyList<Contribution>> GetPageByCycleAsync(
+        Guid stokvelId,
+        int cycleNumber,
+        ContributionPageQuery query)
+    {
+        IQueryable<Contribution> contributions = _dbContext.Contributions
+            .AsNoTracking()
+            .Where(contribution =>
+                contribution.StokvelId == stokvelId &&
+                contribution.Cycle == cycleNumber);
+
+        if (query.UserId.HasValue)
+        {
+            contributions = contributions.Where(contribution =>
+                contribution.UserId == query.UserId.Value);
+        }
+
+        if (query.LastRecordedAt.HasValue && query.LastId.HasValue)
+        {
+            var lastRecordedAt = query.LastRecordedAt.Value;
+            var lastId = query.LastId.Value;
+            contributions = query.Descending
+                ? contributions.Where(contribution =>
+                    contribution.RecordedAt < lastRecordedAt ||
+                    (contribution.RecordedAt == lastRecordedAt &&
+                     contribution.Id.CompareTo(lastId) < 0))
+                : contributions.Where(contribution =>
+                    contribution.RecordedAt > lastRecordedAt ||
+                    (contribution.RecordedAt == lastRecordedAt &&
+                     contribution.Id.CompareTo(lastId) > 0));
+        }
+
+        contributions = query.Descending
+            ? contributions.OrderByDescending(contribution => contribution.RecordedAt)
+                .ThenByDescending(contribution => contribution.Id)
+            : contributions.OrderBy(contribution => contribution.RecordedAt)
+                .ThenBy(contribution => contribution.Id);
+
+        return await contributions
+            .Take(query.PageSize + 1)
+            .ToListAsync();
+    }
+
 }

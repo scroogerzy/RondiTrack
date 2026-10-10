@@ -1,0 +1,16 @@
+﻿                                                                                          QUERY PLAN                                                                                           
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.28..8.30 rows=1 width=65) (actual time=0.093..0.114 rows=20.00 loops=1)
+   Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+   Buffers: shared hit=3
+   ->  Index Scan Backward using "IX_Contributions_StokvelId_Cycle_RecordedAt_Id" on public."Contributions" c  (cost=0.28..8.30 rows=1 width=65) (actual time=0.083..0.099 rows=20.00 loops=1)
+         Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+         Index Cond: ((c."StokvelId" = '1d681270-a83f-da9f-ce94-38166cb5a1eb'::uuid) AND (c."Cycle" = 1))
+         Index Searches: 1
+         Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=176
+ Planning Time: 13.927 ms
+ Execution Time: 0.290 ms
+(12 rows)
+

@@ -14,4 +14,9 @@ public interface IContributionRepository
 
     Task<IEnumerable<Contribution>> GetByStokvelAsync(
         Guid stokvelId);
+
+    Task<IReadOnlyList<Contribution>> GetPageByCycleAsync(
+        Guid stokvelId,
+        int cycleNumber,
+        ContributionPageQuery query);
 }

@@ -1,3 +1,4 @@
+
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
@@ -18,77 +19,104 @@ public class StokvelService : IStokvelService
     private readonly IUserRepository _userRepository;
     private readonly IContributionRepository _contributionRepository;
     private readonly IIdempotencyStore _idempotencyStore;
+    private readonly IStokvelMemberRepository _memberRepository;
 
-    /// <summary>
-    /// Creates a new instance of the stokvel service.
-    /// </summary>
     public StokvelService(
         IStokvelRepository stokvelRepository,
         IUserRepository userRepository,
         IContributionRepository contributionRepository,
-        IIdempotencyStore idempotencyStore)
+        IIdempotencyStore idempotencyStore,
+        IStokvelMemberRepository memberRepository)
     {
         _stokvelRepository = stokvelRepository;
         _userRepository = userRepository;
         _contributionRepository = contributionRepository;
         _idempotencyStore = idempotencyStore;
+        _memberRepository = memberRepository;
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Adds a membership record after checking the stokvel, user,
+    /// duplicate membership, and the maximum membership count.
+    /// </summary>
     public async Task<AddMemberResult> AddMemberAsync(
         Guid stokvelId,
         Guid userId)
     {
-        var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
+        var stokvel =
+            await _stokvelRepository.GetByIdAsync(stokvelId);
 
         if (stokvel is null)
             return new AddMemberResult.StokvelNotFound(stokvelId);
 
-        var user = await _userRepository.GetByIdAsync(userId);
+        var user =
+            await _userRepository.GetByIdAsync(userId);
 
         if (user is null)
             return new AddMemberResult.UserNotFound(userId);
 
-        if (stokvel.MemberIds.Contains(userId))
+        // Check the persisted membership table, not MemberIds.
+        var existingMembership =
+            await _memberRepository.GetAsync(userId, stokvelId);
+
+        if (existingMembership is not null)
             return new AddMemberResult.AlreadyMember(userId);
 
-        if (stokvel.MemberIds.Count >= 20)
+        // The current business rule limits each stokvel to 20 members.
+        var members =
+            await _memberRepository.GetByStokvelIdAsync(stokvelId);
+
+        if (members.Count() >= 20)
             return new AddMemberResult.MembershipLimitReached();
 
-        stokvel.AddMember(userId);
+        // Persist the relationship using its explicit join entity.
+        var membership = new StokvelMember(
+            userId,
+            stokvelId,
+            "Member",
+            DateTime.UtcNow);
 
-        await _stokvelRepository.UpdateAsync(stokvel);
+        await _memberRepository.AddAsync(membership);
 
         return new AddMemberResult.Added();
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Removes a persisted membership.
+    /// Returns false when the stokvel or membership does not exist.
+    /// </summary>
     public async Task<bool> RemoveMemberAsync(
         Guid stokvelId,
         Guid userId)
     {
-        var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
+        var stokvel =
+            await _stokvelRepository.GetByIdAsync(stokvelId);
 
         if (stokvel is null)
             return false;
 
-        if (!stokvel.MemberIds.Contains(userId))
+        var membership =
+            await _memberRepository.GetAsync(userId, stokvelId);
+
+        if (membership is null)
             return false;
 
-        stokvel.RemoveMember(userId);
-
-        await _stokvelRepository.UpdateAsync(stokvel);
-
-        return true;
+        return await _memberRepository.DeleteAsync(
+            userId,
+            stokvelId);
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Records a contribution after checking the request, persisted
+    /// membership, duplicate contribution, and idempotency key.
+    /// </summary>
     public async Task<RecordContributionResult> RecordContributionAsync(
         Guid stokvelId,
         Guid userId,
         string idempotencyKey,
         RecordContributionRequest request)
     {
+        // Hash the complete request context to detect changed payloads.
         var requestHash = CreateRequestHash(
             stokvelId,
             userId,
@@ -97,6 +125,7 @@ public class StokvelService : IStokvelService
         var existingRecord =
             await _idempotencyStore.FindAsync(idempotencyKey);
 
+        // Replay the stored result when the same key and payload are reused.
         if (existingRecord is not null)
         {
             if (existingRecord.ResponseBody is null ||
@@ -110,7 +139,8 @@ public class StokvelService : IStokvelService
                 existingRecord.ResponseBody);
         }
 
-        var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
+        var stokvel =
+            await _stokvelRepository.GetByIdAsync(stokvelId);
 
         if (stokvel is null)
         {
@@ -118,7 +148,8 @@ public class StokvelService : IStokvelService
                 stokvelId);
         }
 
-        var user = await _userRepository.GetByIdAsync(userId);
+        var user =
+            await _userRepository.GetByIdAsync(userId);
 
         if (user is null)
         {
@@ -126,7 +157,12 @@ public class StokvelService : IStokvelService
                 userId);
         }
 
-        if (!stokvel.MemberIds.Contains(userId))
+        // Membership must exist in the same persistence system used
+        // by the API's membership endpoints.
+        var membership =
+            await _memberRepository.GetAsync(userId, stokvelId);
+
+        if (membership is null)
         {
             return new RecordContributionResult.UserNotMember(
                 stokvelId,
@@ -139,6 +175,7 @@ public class StokvelService : IStokvelService
                 request.Cycle);
         }
 
+        // Preserve the existing business rule: contributions are R500.
         if (request.Amount != 500m)
         {
             return new RecordContributionResult.InvalidAmount(
@@ -159,6 +196,7 @@ public class StokvelService : IStokvelService
                 request.Cycle);
         }
 
+        // Reserve the key before attempting to store the contribution.
         var reserved =
             await _idempotencyStore.TryReserveAsync(idempotencyKey);
 
@@ -179,37 +217,28 @@ public class StokvelService : IStokvelService
                 reservedRecord.ResponseBody);
         }
 
-        try
-        {
-            var contribution = new Contribution(
-                stokvelId,
-                userId,
-                request.Cycle,
-                request.Amount);
+        var contribution = new Contribution(
+            stokvelId,
+            userId,
+            request.Cycle,
+            request.Amount);
 
-            await _contributionRepository.AddAsync(
-                contribution);
+        await _contributionRepository.AddAsync(contribution);
 
-            var response = contribution.ToResponse();
+        var response = contribution.ToResponse();
 
-            await _idempotencyStore.SaveAsync(
-                idempotencyKey,
-                new IdempotencyRecord(
-                    requestHash,
-                    response));
+        await _idempotencyStore.SaveAsync(
+            idempotencyKey,
+            new IdempotencyRecord(
+                requestHash,
+                response));
 
-            return new RecordContributionResult.Recorded(
-                response);
-        }
-        catch
-        {
-            throw;
-        }
+        return new RecordContributionResult.Recorded(response);
     }
 
     /// <summary>
-    /// Creates a deterministic SHA-256 hash from the complete
-    /// contribution request context.
+    /// Creates a deterministic SHA-256 hash from the contribution
+    /// request context, including the stokvel, user, cycle, and amount.
     /// </summary>
     private static string CreateRequestHash(
         Guid stokvelId,
@@ -217,17 +246,15 @@ public class StokvelService : IStokvelService
         RecordContributionRequest request)
     {
         var payload = new
-{
-    StokvelId = stokvelId,
-    UserId = userId,
-    request.Cycle,
-    request.Amount
-};
+        {
+            StokvelId = stokvelId,
+            UserId = userId,
+            request.Cycle,
+            request.Amount
+        };
 
         var json = JsonSerializer.Serialize(payload);
-
         var bytes = Encoding.UTF8.GetBytes(json);
-
         var hash = SHA256.HashData(bytes);
 
         return Convert.ToHexString(hash);

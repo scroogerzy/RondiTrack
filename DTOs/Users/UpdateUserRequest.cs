@@ -5,4 +5,5 @@ namespace RondiTrack.DTOs.Users;
 /// </summary>
 public record UpdateUserRequest(
     string FullName,
-    string Email);
+    string Email,
+    uint Version);

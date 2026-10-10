@@ -1,3 +1,4 @@
+
 using Microsoft.EntityFrameworkCore;
 using RondiTrack.Models;
 
@@ -30,6 +31,9 @@ public class RondiTrackDbContext : DbContext
             entity.Property(user => user.Id)
                 .ValueGeneratedNever();
 
+            entity.Property(user => user.Version)
+                .IsRowVersion();
+
             entity.Property(user => user.FullName)
                 .IsRequired()
                 .HasMaxLength(100);
@@ -46,6 +50,9 @@ public class RondiTrackDbContext : DbContext
 
             entity.Property(stokvel => stokvel.Id)
                 .ValueGeneratedNever();
+
+            entity.Property(stokvel => stokvel.Version)
+                .IsRowVersion();
 
             entity.Property(stokvel => stokvel.Name)
                 .IsRequired()
@@ -68,6 +75,9 @@ public class RondiTrackDbContext : DbContext
             entity.Property(member => member.Role)
                 .IsRequired()
                 .HasMaxLength(50);
+
+            entity.Property(member => member.Version)
+                .IsRowVersion();
 
             entity.Property(member => member.JoinedAtUtc)
                 .IsRequired();
@@ -93,6 +103,9 @@ public class RondiTrackDbContext : DbContext
 
             entity.Property(cycle => cycle.Id)
                 .ValueGeneratedNever();
+
+            entity.Property(cycle => cycle.Version)
+                .IsRowVersion();
 
             entity.HasAlternateKey(cycle => new
             {
@@ -149,11 +162,38 @@ public class RondiTrackDbContext : DbContext
             entity.Property(contribution => contribution.RecordedAt)
                 .IsRequired();
 
+            // Supports queries filtering contributions by stokvel and cycle.
+            // This index remains non-unique for its existing query purpose.
             entity.HasIndex(contribution => new
             {
                 contribution.StokvelId,
                 contribution.Cycle
             });
+
+            // Database-enforced business rule: a member can make at most
+            // one contribution per stokvel and cycle.
+            // This also protects against concurrent requests that both pass
+            // the service-level duplicate check.
+            entity.HasIndex(contribution => new
+            {
+                contribution.StokvelId,
+                contribution.UserId,
+                contribution.Cycle
+            })
+            .IsUnique()
+            .HasDatabaseName(
+                "UX_Contributions_StokvelId_UserId_Cycle");
+            // Supports the paged contribution query: equality filters first,
+            // then the deterministic RecordedAt/Id keyset ordering.
+            entity.HasIndex(contribution => new
+            {
+                contribution.StokvelId,
+                contribution.Cycle,
+                contribution.RecordedAt,
+                contribution.Id
+            })
+            .HasDatabaseName(
+                "IX_Contributions_StokvelId_Cycle_RecordedAt_Id");
         });
 
         base.OnModelCreating(modelBuilder);

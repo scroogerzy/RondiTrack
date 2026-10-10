@@ -1,0 +1,21 @@
+﻿                                                            QUERY PLAN                                                            
+----------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=3.38..3.39 rows=1 width=65) (actual time=0.164..0.166 rows=1.00 loops=1)
+   Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+   Buffers: shared hit=6
+   ->  Sort  (cost=3.38..3.39 rows=1 width=65) (actual time=0.162..0.163 rows=1.00 loops=1)
+         Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+         Sort Key: c."RecordedAt" DESC, c."Id" DESC
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=6
+         ->  Seq Scan on public."Contributions" c  (cost=0.00..3.38 rows=1 width=65) (actual time=0.063..0.064 rows=1.00 loops=1)
+               Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+               Filter: ((c."StokvelId" = 'c04edf52-cabb-49e3-accc-99f8cf0edaa6'::uuid) AND (c."Cycle" = 1))
+               Rows Removed by Filter: 16
+               Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.907 ms
+ Execution Time: 0.271 ms
+(17 rows)
+

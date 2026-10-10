@@ -1,0 +1,21 @@
+﻿                                                                                  QUERY PLAN                                                                                  
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=8.30..8.31 rows=1 width=92) (actual time=0.382..0.391 rows=20.00 loops=1)
+   Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+   Buffers: shared hit=9
+   ->  Sort  (cost=8.30..8.31 rows=1 width=92) (actual time=0.373..0.376 rows=20.00 loops=1)
+         Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+         Sort Key: c."RecordedAt" DESC, c."Id" DESC
+         Sort Method: quicksort  Memory: 27kB
+         Buffers: shared hit=9
+         ->  Index Scan using "IX_Contributions_StokvelId_Cycle" on public."Contributions" c  (cost=0.27..8.29 rows=1 width=92) (actual time=0.123..0.144 rows=20.00 loops=1)
+               Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+               Index Cond: ((c."StokvelId" = '1d681270-a83f-da9f-ce94-38166cb5a1eb'::uuid) AND (c."Cycle" = 1))
+               Index Searches: 1
+               Buffers: shared hit=3
+ Planning:
+   Buffers: shared hit=147
+ Planning Time: 11.518 ms
+ Execution Time: 0.553 ms
+(17 rows)
+

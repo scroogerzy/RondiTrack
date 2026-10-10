@@ -1,0 +1,785 @@
+﻿  Determining projects to restore...
+  All projects are up-to-date for restore.
+  RondiTrack -> C:\users\taabosch\desktop\RondiTrack\bin\Debug\net10.0\RondiTrack.dll
+  RondiTrack.Tests -> C:\users\taabosch\desktop\RondiTrack\RondiTrack.Tests\bin\Debug\net10.0\RondiTrack.Tests.dll
+Test run for C:\users\taabosch\desktop\RondiTrack\RondiTrack.Tests\bin\Debug\net10.0\RondiTrack.Tests.dll (.NETCoreApp,Version=v10.0)
+VSTest version 18.0.1 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.02] xUnit.net VSTest Adapter v3.1.4+50e68bbb8b (64-bit .NET 10.0.0)
+[xUnit.net 00:00:00.57]   Discovering: RondiTrack.Tests
+[xUnit.net 00:00:02.62]   Discovered:  RondiTrack.Tests
+[xUnit.net 00:00:02.73]   Starting:    RondiTrack.Tests
+  Passed RondiTrack.Tests.Unit.ContributionPageTokenTests.ContributionToken_RoundTripsQueryAndCursor [322 ms]
+  Passed RondiTrack.Tests.Unit.ContributionPageTokenTests.CycleToken_RoundTripsStokvelAndCursor [31 ms]
+  Passed RondiTrack.Tests.Unit.ContributionPageTokenTests.ContributionToken_RejectsMalformedInput [15 ms]
+  Passed RondiTrack.Tests.Unit.StokvelServiceTests.RecordContributionAsync_WhenSameKeyHasDifferentPayload_ReturnsKeyConflict [69 ms]
+  Passed RondiTrack.Tests.Unit.StokvelServiceTests.AddMemberAsync_WhenUserAlreadyMember_ReturnsAlreadyMember [9 ms]
+  Passed RondiTrack.Tests.Unit.StokvelServiceTests.RecordContributionAsync_WhenContributionAlreadyExists_ReturnsDuplicateContribution [4 ms]
+  Passed RondiTrack.Tests.Integration.CentralExceptionHandlingTests.Unique_violation_becomes_409_problem_json_not_500 [526 ms]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (77ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "MigrationId", "ProductVersion"
+      FROM "__EFMigrationsHistory"
+      ORDER BY "MigrationId";
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (26ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (22ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      CREATE TABLE IF NOT EXISTS "__EFMigrationsHistory" (
+          "MigrationId" character varying(150) NOT NULL,
+          "ProductVersion" character varying(32) NOT NULL,
+          CONSTRAINT "PK___EFMigrationsHistory" PRIMARY KEY ("MigrationId")
+      );
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      LOCK TABLE "__EFMigrationsHistory" IN ACCESS EXCLUSIVE MODE
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT "MigrationId", "ProductVersion"
+      FROM "__EFMigrationsHistory"
+      ORDER BY "MigrationId";
+info: Microsoft.EntityFrameworkCore.Migrations[20405]
+      No migrations were applied. The database is already up to date.
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM "Users" AS u)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (7ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT EXISTS (
+          SELECT 1
+          FROM "Stokvels" AS s)
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: C:\users\taabosch\desktop\RondiTrack
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (53ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?', @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Users" ("Id", "Email", "FullName")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (47ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (48ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (9ms) [Parameters=[@p='?' (DbType = Guid), @p1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."UserId" = @p AND s."StokvelId" = @p1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@stokvelId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."StokvelId" = @stokvelId
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Guid), @p2='?' (DbType = DateTime), @p3='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "StokvelMembers" ("StokvelId", "UserId", "JoinedAtUtc", "Role")
+      VALUES (@p0, @p1, @p2, @p3)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid), @p1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."UserId" = @p AND s."StokvelId" = @p1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (13ms) [Parameters=[@stokvelId='?' (DbType = Guid), @userId='?' (DbType = Guid), @cycle='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."UserId" = @userId AND c."Cycle" = @cycle
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (8ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Contributions" ("Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5);
+  Passed RondiTrack.Tests.Integration.IdempotencyTests.SameContributionRequestAndKey_IsIdempotent [14 s]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (8ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?', @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Users" ("Id", "Email", "FullName")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (87ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+fail: Microsoft.EntityFrameworkCore.Update[10000]
+      An exception occurred in the database while saving changes for context type 'RondiTrack.Data.RondiTrackDbContext'.
+      Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+       ---> Npgsql.PostgresException (0x80004005): 23505: duplicate key value violates unique constraint "AK_ContributionCycles_StokvelId_PeriodNumber"
+      DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+        Exception data:
+          Severity: ERROR
+          SqlState: 23505
+          MessageText: duplicate key value violates unique constraint "AK_ContributionCycles_StokvelId_PeriodNumber"
+          Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+          SchemaName: public
+          TableName: ContributionCycles
+          ConstraintName: AK_ContributionCycles_StokvelId_PeriodNumber
+          File: nbtinsert.c
+          Line: 673
+          Routine: _bt_check_unique
+         --- End of inner exception stack trace ---
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+      Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+       ---> Npgsql.PostgresException (0x80004005): 23505: duplicate key value violates unique constraint "AK_ContributionCycles_StokvelId_PeriodNumber"
+      DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+        Exception data:
+          Severity: ERROR
+          SqlState: 23505
+          MessageText: duplicate key value violates unique constraint "AK_ContributionCycles_StokvelId_PeriodNumber"
+          Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+          SchemaName: public
+          TableName: ContributionCycles
+          ConstraintName: AK_ContributionCycles_StokvelId_PeriodNumber
+          File: nbtinsert.c
+          Line: 673
+          Routine: _bt_check_unique
+         --- End of inner exception stack trace ---
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+fail: RondiTrack.Middleware.ExceptionHandlingMiddleware[0]
+      Request failed. CorrelationId: be2af705-6386-4435-bf77-3bfa6f28a99e
+      Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+       ---> Npgsql.PostgresException (0x80004005): 23505: duplicate key value violates unique constraint "AK_ContributionCycles_StokvelId_PeriodNumber"
+      DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+        Exception data:
+          Severity: ERROR
+          SqlState: 23505
+          MessageText: duplicate key value violates unique constraint "AK_ContributionCycles_StokvelId_PeriodNumber"
+          Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+          SchemaName: public
+          TableName: ContributionCycles
+          ConstraintName: AK_ContributionCycles_StokvelId_PeriodNumber
+          File: nbtinsert.c
+          Line: 673
+          Routine: _bt_check_unique
+         --- End of inner exception stack trace ---
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at RondiTrack.Data.EfContributionCycleRepository.AddAsync(ContributionCycle cycle) in C:\users\taabosch\desktop\RondiTrack\Data\EfContributionCycleRepository.cs:line 53
+         at RondiTrack.Controllers.ContributionCyclesController.CreateCycle(Guid stokvelId, CreateContributionCycleRequest request) in C:\users\taabosch\desktop\RondiTrack\Controllers\ContributionCyclesController.cs:line 318
+         at lambda_method213(Closure, Object)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ActionMethodExecutor.AwaitableObjectResultExecutor.Execute(ActionContext actionContext, IActionResultTypeMapper mapper, ObjectMethodExecutor executor, Object controller, Object[] arguments)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeActionMethodAsync>g__Awaited|12_0(ControllerActionInvoker invoker, ValueTask`1 actionResultValueTask)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeNextActionFilterAsync>g__Awaited|10_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Rethrow(ActionExecutedContextSealed context)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.Next(State& next, Scope& scope, Object& state, Boolean& isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ControllerActionInvoker.<InvokeInnerFilterAsync>g__Awaited|13_0(ControllerActionInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeFilterPipelineAsync>g__Awaited|20_0(ResourceInvoker invoker, Task lastTask, State next, Scope scope, Object state, Boolean isCompleted)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at Microsoft.AspNetCore.Mvc.Infrastructure.ResourceInvoker.<InvokeAsync>g__Awaited|17_0(ResourceInvoker invoker, Task task, IDisposable scope)
+         at RondiTrack.Middleware.ExceptionHandlingMiddleware.InvokeAsync(HttpContext context) in C:\users\taabosch\desktop\RondiTrack\Middleware\ExceptionHandlingMiddleware.cs:line 30
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (13ms) [Parameters=[@stokvelId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."StokvelId" = @stokvelId
+      ORDER BY c."PeriodNumber", c."Id"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@stokvelId='?' (DbType = Guid), @lastPeriodNumber='?' (DbType = Int32), @lastId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."StokvelId" = @stokvelId AND (c."PeriodNumber" > @lastPeriodNumber OR (c."PeriodNumber" = @lastPeriodNumber AND c."Id" > @lastId))
+      ORDER BY c."PeriodNumber", c."Id"
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@stokvelId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."StokvelId" = @stokvelId
+      ORDER BY c."PeriodNumber", c."Id"
+      LIMIT @p
+  Passed RondiTrack.Tests.Integration.HappyPathTests.GetUsers_ReturnsSuccess [227 ms]
+  Passed RondiTrack.Tests.Integration.HappyPathTests.GetStokvels_ReturnsSuccess [61 ms]
+  Passed RondiTrack.Tests.Integration.HappyPathTests.CreateUser_WithValidRequest_ReturnsCreated [18 ms]
+  Passed RondiTrack.Tests.Integration.HappyPathTests.CreateStokvel_WithValidRequest_ReturnsCreated [18 ms]
+  Passed RondiTrack.Tests.Integration.ErrorHandlingTests.CreateStokvel_WithInvalidContribution_ReturnsBadRequest [91 ms]
+  Passed RondiTrack.Tests.Integration.ErrorHandlingTests.CreateUser_WithInvalidEmail_ReturnsBadRequest [48 ms]
+  Passed RondiTrack.Tests.Integration.ErrorHandlingTests.GetUnknownUser_ReturnsNotFound [52 ms]
+  Passed RondiTrack.Tests.Integration.ErrorHandlingTests.CreateCycle_WithDuplicatePeriodNumber_ReturnsConflict [525 ms]
+  Passed RondiTrack.Tests.Integration.CyclePaginationTests.Walking_cycle_pages_returns_each_cycle_once_then_an_empty_token [384 ms]
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?', @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Users" ("Id", "Email", "FullName")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid), @p1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."UserId" = @p AND s."StokvelId" = @p1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@stokvelId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."StokvelId" = @stokvelId
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Guid), @p2='?' (DbType = DateTime), @p3='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "StokvelMembers" ("StokvelId", "UserId", "JoinedAtUtc", "Role")
+      VALUES (@p0, @p1, @p2, @p3)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?', @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Users" ("Id", "Email", "FullName")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid), @p1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."UserId" = @p AND s."StokvelId" = @p1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@stokvelId='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."StokvelId" = @stokvelId
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Guid), @p2='?' (DbType = DateTime), @p3='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "StokvelMembers" ("StokvelId", "UserId", "JoinedAtUtc", "Role")
+      VALUES (@p0, @p1, @p2, @p3)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid), @p1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."UserId" = @p AND s."StokvelId" = @p1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@stokvelId='?' (DbType = Guid), @userId='?' (DbType = Guid), @cycle='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."UserId" = @userId AND c."Cycle" = @cycle
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Contributions" ("Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5);
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid), @p1='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."UserId", s."StokvelId", s."JoinedAtUtc", s."Role", s.xmin
+      FROM "StokvelMembers" AS s
+      WHERE s."UserId" = @p AND s."StokvelId" = @p1
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@stokvelId='?' (DbType = Guid), @userId='?' (DbType = Guid), @cycle='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."UserId" = @userId AND c."Cycle" = @cycle
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Contributions" ("Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5);
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@stokvelId='?' (DbType = Guid), @cycleNumber='?' (DbType = Int32), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."Cycle" = @cycleNumber
+      ORDER BY c."RecordedAt" DESC, c."Id" DESC
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@stokvelId='?' (DbType = Guid), @cycleNumber='?' (DbType = Int32), @lastRecordedAt='?' (DbType = DateTime), @lastId='?' (DbType = Guid), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."Cycle" = @cycleNumber AND (c."RecordedAt" < @lastRecordedAt OR (c."RecordedAt" = @lastRecordedAt AND c."Id" < @lastId))
+      ORDER BY c."RecordedAt" DESC, c."Id" DESC
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (18ms) [Parameters=[@stokvelId='?' (DbType = Guid), @cycleNumber='?' (DbType = Int32), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."Cycle" = @cycleNumber
+      ORDER BY c."RecordedAt" DESC, c."Id" DESC
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@stokvelId='?' (DbType = Guid), @cycleNumber='?' (DbType = Int32), @p='?' (DbType = Int32)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."Amount", c."Cycle", c."RecordedAt", c."StokvelId", c."UserId"
+      FROM "Contributions" AS c
+      WHERE c."StokvelId" = @stokvelId AND c."Cycle" = @cycleNumber
+      ORDER BY c."RecordedAt" DESC, c."Id" DESC
+      LIMIT @p
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?', @p3='?' (DbType = Guid), @p4='?', @p5='?', @p6='?' (DbType = Guid), @p7='?' (DbType = DateTime), @p8='?' (DbType = Int32), @p9='?' (DbType = DateTime), @p10='?' (DbType = Guid), @p11='?' (DbType = Decimal), @p12='?' (DbType = Guid), @p13='?' (DbType = Guid), @p14='?' (DbType = DateTime), @p15='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+      INSERT INTO "Users" ("Id", "Email", "FullName")
+      VALUES (@p3, @p4, @p5)
+      RETURNING xmin;
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p6, @p7, @p8, @p9, @p10, @p11)
+      RETURNING xmin;
+      INSERT INTO "StokvelMembers" ("StokvelId", "UserId", "JoinedAtUtc", "Role")
+      VALUES (@p12, @p13, @p14, @p15)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Contributions" ("Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5);
+fail: Microsoft.EntityFrameworkCore.Database.Command[20102]
+      Failed executing DbCommand (22ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Contributions" ("Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5);
+fail: Microsoft.EntityFrameworkCore.Update[10000]
+      An exception occurred in the database while saving changes for context type 'RondiTrack.Data.RondiTrackDbContext'.
+      Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+       ---> Npgsql.PostgresException (0x80004005): 23505: duplicate key value violates unique constraint "UX_Contributions_StokvelId_UserId_Cycle"
+      DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+        Exception data:
+          Severity: ERROR
+          SqlState: 23505
+          MessageText: duplicate key value violates unique constraint "UX_Contributions_StokvelId_UserId_Cycle"
+          Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+          SchemaName: public
+          TableName: Contributions
+          ConstraintName: UX_Contributions_StokvelId_UserId_Cycle
+          File: nbtinsert.c
+          Line: 673
+          Routine: _bt_check_unique
+         --- End of inner exception stack trace ---
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+      Microsoft.EntityFrameworkCore.DbUpdateException: An error occurred while saving the entity changes. See the inner exception for details.
+       ---> Npgsql.PostgresException (0x80004005): 23505: duplicate key value violates unique constraint "UX_Contributions_StokvelId_UserId_Cycle"
+      DETAIL: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+         at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+         at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+         at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+        Exception data:
+          Severity: ERROR
+          SqlState: 23505
+          MessageText: duplicate key value violates unique constraint "UX_Contributions_StokvelId_UserId_Cycle"
+          Detail: Detail redacted as it may contain sensitive data. Specify 'Include Error Detail' in the connection string to include this information.
+          SchemaName: public
+          TableName: Contributions
+          ConstraintName: UX_Contributions_StokvelId_UserId_Cycle
+          File: nbtinsert.c
+          Line: 673
+          Routine: _bt_check_unique
+         --- End of inner exception stack trace ---
+         at Microsoft.EntityFrameworkCore.Update.ReaderModificationCommandBatch.ExecuteAsync(IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Update.Internal.BatchExecutor.ExecuteAsync(IEnumerable`1 commandBatches, IRelationalConnection connection, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.Storage.RelationalDatabase.SaveChangesAsync(IList`1 entries, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(IList`1 entriesToSave, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.ChangeTracking.Internal.StateManager.SaveChangesAsync(StateManager stateManager, Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+         at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+         at Microsoft.EntityFrameworkCore.DbContext.SaveChangesAsync(Boolean acceptAllChangesOnSuccess, CancellationToken cancellationToken)
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (3ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (4ms) [Parameters=[@p3='?' (DbType = Guid), @p0='?' (DbType = DateTime), @p1='?' (DbType = DateTime), @p2='?' (DbType = Decimal), @p4='?' (DbType = Object)], CommandType='Text', CommandTimeout='30']
+      UPDATE "ContributionCycles" SET "EndDate" = @p0, "StartDate" = @p1, "TargetAmount" = @p2
+      WHERE "Id" = @p3 AND xmin = @p4
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = Decimal), @p2='?'], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "Stokvels" ("Id", "MonthlyContribution", "Name")
+      VALUES (@p0, @p1, @p2)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p0='?' (DbType = Guid), @p1='?' (DbType = DateTime), @p2='?' (DbType = Int32), @p3='?' (DbType = DateTime), @p4='?' (DbType = Guid), @p5='?' (DbType = Decimal)], CommandType='Text', CommandTimeout='30']
+      INSERT INTO "ContributionCycles" ("Id", "EndDate", "PeriodNumber", "StartDate", "StokvelId", "TargetAmount")
+      VALUES (@p0, @p1, @p2, @p3, @p4, @p5)
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@created_Item2_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @created_Item2_Id
+      LIMIT 2
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@created_Item2_Id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @created_Item2_Id
+      LIMIT 2
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p1='?' (DbType = Guid), @p0='?' (DbType = Decimal), @p2='?' (DbType = Object)], CommandType='Text', CommandTimeout='30']
+      UPDATE "ContributionCycles" SET "TargetAmount" = @p0
+      WHERE "Id" = @p1 AND xmin = @p2
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p1='?' (DbType = Guid), @p0='?' (DbType = Decimal), @p2='?' (DbType = Object)], CommandType='Text', CommandTimeout='30']
+      UPDATE "ContributionCycles" SET "TargetAmount" = @p0
+      WHERE "Id" = @p1 AND xmin = @p2
+      RETURNING xmin;
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@id='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT c."Id", c."EndDate", c."PeriodNumber", c."StartDate", c."StokvelId", c."TargetAmount", c.xmin
+      FROM "ContributionCycles" AS c
+      WHERE c."Id" = @id
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (1ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT u."Id", u."Email", u."FullName", u.xmin
+      FROM "Users" AS u
+      WHERE u."Id" = @p
+      LIMIT 1
+info: Microsoft.EntityFrameworkCore.Database.Command[20101]
+      Executed DbCommand (2ms) [Parameters=[@p='?' (DbType = Guid)], CommandType='Text', CommandTimeout='30']
+      SELECT s."Id", s."MonthlyContribution", s."Name", s.xmin
+      FROM "Stokvels" AS s
+      WHERE s."Id" = @p
+      LIMIT 1
+info: Microsoft.Hosting.Lifetime[0]
+      Application is shutting down...
+[xUnit.net 00:00:20.42]   Finished:    RondiTrack.Tests
+  Passed RondiTrack.Tests.Integration.ContributionPaginationTests.Walking_pages_returns_each_contribution_once_then_an_empty_token [440 ms]
+  Passed RondiTrack.Tests.Integration.ContributionConstraintTests.Duplicate_contribution_is_rejected_by_the_database_unique_index [169 ms]
+  Passed RondiTrack.Tests.Integration.ConcurrencyTests.Update_with_stale_xmin_returns_409_problem_json [205 ms]
+  Passed RondiTrack.Tests.Integration.ConcurrencyTests.Second_writer_with_stale_xmin_throws_DbUpdateConcurrencyException [100 ms]
+  Passed RondiTrack.Tests.EdgeCaseTests.ShouldLoadStokvelsAndUsersSuccessfully [203 ms]
+  Passed RondiTrack.Tests.EdgeCaseTests.ShouldReturnNotFoundForUnknownContributionCycle [14 ms]
+  Passed RondiTrack.Tests.EdgeCaseTests.ShouldLoadStokvelForDuplicateContributionScenario [30 ms]
+  Passed RondiTrack.Tests.EdgeCaseTests.ShouldReturnNotFoundForUnknownUser [12 ms]
+  Passed RondiTrack.Tests.EdgeCaseTests.ShouldReturnNotFoundForUnknownStokvel [43 ms]
+
+Test Run Successful.
+Total tests: 26
+     Passed: 26
+ Total time: 26.6065 Seconds
