@@ -20,3 +20,6 @@ public class ApiTestFactory : WebApplicationFactory<Program>
         builder.UseEnvironment("Development");
     }
 }
+/// <summary>One shared integration host avoids parallel startup-seed races against the same PostgreSQL database.</summary>
+[CollectionDefinition("RondiTrack PostgreSQL collection")]
+public sealed class RondiTrackPostgreSqlCollection : ICollectionFixture<ApiTestFactory> { }

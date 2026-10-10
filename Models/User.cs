@@ -7,6 +7,7 @@ namespace RondiTrack.Models;
 public class User
 {
     public Guid Id { get; private set; }
+    public uint Version { get; private set; }
 
     public string FullName { get; private set; } = null!;
 

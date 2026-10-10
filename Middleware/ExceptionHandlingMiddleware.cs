@@ -1,12 +1,14 @@
+
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 using RondiTrack.Exceptions;
 
 namespace RondiTrack.Middleware;
 
 /// <summary>
-/// Handles application exceptions centrally and returns RFC 9457-style
-/// Problem Details responses.
+/// Handles application and database exceptions centrally.
 /// </summary>
 public sealed class ExceptionHandlingMiddleware
 {
@@ -29,9 +31,7 @@ public sealed class ExceptionHandlingMiddleware
         }
         catch (Exception exception)
         {
-            await HandleExceptionAsync(
-                context,
-                exception);
+            await HandleExceptionAsync(context, exception);
         }
     }
 
@@ -48,40 +48,64 @@ public sealed class ExceptionHandlingMiddleware
             "Request failed. CorrelationId: {CorrelationId}",
             correlationId);
 
-        var (statusCode, title, type) = exception switch
+        var postgresException = FindPostgresException(exception);
+
+        var (statusCode, title, type, detail) = exception switch
         {
+            DbUpdateConcurrencyException =>
+                (
+                    StatusCodes.Status409Conflict,
+                    "Conflict",
+                    "https://api.ronditrack.co.za/errors/conflict",
+                    "The resource was changed by another request. Reload it and retry."
+                ),
+
             NotFoundException =>
                 (
                     StatusCodes.Status404NotFound,
                     "Not Found",
-                    "https://api.ronditrack.co.za/errors/not-found"
+                    "https://api.ronditrack.co.za/errors/not-found",
+                    exception.Message
                 ),
 
             ConflictException =>
                 (
                     StatusCodes.Status409Conflict,
                     "Conflict",
-                    "https://api.ronditrack.co.za/errors/conflict"
+                    "https://api.ronditrack.co.za/errors/conflict",
+                    exception.Message
                 ),
 
             BusinessRuleException =>
                 (
                     StatusCodes.Status422UnprocessableEntity,
                     "Unprocessable Entity",
-                    "https://api.ronditrack.co.za/errors/unprocessable-entity"
+                    "https://api.ronditrack.co.za/errors/unprocessable-entity",
+                    exception.Message
+                ),
+
+            // PostgreSQL is the final authority for unique constraints.
+            // EF Core may wrap its PostgreSQL exception inside DbUpdateException.
+            _ when postgresException?.SqlState
+                == PostgresErrorCodes.UniqueViolation =>
+                (
+                    StatusCodes.Status409Conflict,
+                    "Conflict",
+                    "https://api.ronditrack.co.za/errors/conflict",
+                    "A record with these values already exists."
                 ),
 
             _ =>
                 (
                     StatusCodes.Status500InternalServerError,
                     "Internal Server Error",
-                    "https://api.ronditrack.co.za/errors/internal-server-error"
+                    "https://api.ronditrack.co.za/errors/internal-server-error",
+                    "An unexpected error occurred."
                 )
         };
 
-        context.Response.ContentType =
-            "application/problem+json";
-
+        context.Response.Clear();
+        context.Response.ContentType = "application/problem+json";
         context.Response.StatusCode = statusCode;
 
         var problem = new ProblemDetails
@@ -89,14 +113,29 @@ public sealed class ExceptionHandlingMiddleware
             Type = type,
             Title = title,
             Status = statusCode,
-            Detail = exception.Message,
+            Detail = detail,
             Instance = context.Request.Path
         };
 
-        problem.Extensions["correlationId"] =
-            correlationId;
+        problem.Extensions["correlationId"] = correlationId;
 
         await context.Response.WriteAsync(
             JsonSerializer.Serialize(problem));
+    }
+
+    private static PostgresException? FindPostgresException(
+        Exception exception)
+    {
+        for (Exception? current = exception;
+             current is not null;
+             current = current.InnerException)
+        {
+            if (current is PostgresException postgresException)
+            {
+                return postgresException;
+            }
+        }
+
+        return null;
     }
 }

@@ -1,0 +1,25 @@
+﻿                                                                        QUERY PLAN                                                                        
+----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=12.30..12.30 rows=1 width=65) (actual time=0.251..0.254 rows=1.00 loops=1)
+   Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+   Buffers: shared hit=6
+   ->  Sort  (cost=12.30..12.30 rows=1 width=65) (actual time=0.248..0.250 rows=1.00 loops=1)
+         Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+         Sort Key: c."RecordedAt" DESC, c."Id" DESC
+         Sort Method: quicksort  Memory: 25kB
+         Buffers: shared hit=6
+         ->  Bitmap Heap Scan on public."Contributions" c  (cost=8.27..12.29 rows=1 width=65) (actual time=0.129..0.132 rows=1.00 loops=1)
+               Output: "Id", "Amount", "Cycle", "RecordedAt", "StokvelId", "UserId"
+               Recheck Cond: ((c."StokvelId" = 'c04edf52-cabb-49e3-accc-99f8cf0edaa6'::uuid) AND (c."Cycle" = 1))
+               Heap Blocks: exact=1
+               Buffers: shared hit=3
+               ->  Bitmap Index Scan on "IX_Contributions_StokvelId_Cycle"  (cost=0.00..8.27 rows=1 width=0) (actual time=0.061..0.062 rows=1.00 loops=1)
+                     Index Cond: ((c."StokvelId" = 'c04edf52-cabb-49e3-accc-99f8cf0edaa6'::uuid) AND (c."Cycle" = 1))
+                     Index Searches: 1
+                     Buffers: shared hit=2
+ Planning:
+   Buffers: shared hit=24
+ Planning Time: 0.900 ms
+ Execution Time: 0.506 ms
+(21 rows)
+

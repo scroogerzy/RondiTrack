@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RondiTrack.Data;
@@ -11,9 +12,11 @@ using RondiTrack.Data;
 namespace RondiTrack.Migrations
 {
     [DbContext(typeof(RondiTrackDbContext))]
-    partial class RondiTrackDbContextModelSnapshot : ModelSnapshot
+    [Migration("20261010081740_AddContributionMemberCycleUniqueIndex")]
+    partial class AddContributionMemberCycleUniqueIndex
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -50,9 +53,6 @@ namespace RondiTrack.Migrations
                         .IsUnique()
                         .HasDatabaseName("UX_Contributions_StokvelId_UserId_Cycle");
 
-                    b.HasIndex("StokvelId", "Cycle", "RecordedAt", "Id")
-                        .HasDatabaseName("IX_Contributions_StokvelId_Cycle_RecordedAt_Id");
-
                     b.ToTable("Contributions");
                 });
 
@@ -76,12 +76,6 @@ namespace RondiTrack.Migrations
                     b.Property<decimal>("TargetAmount")
                         .HasColumnType("numeric");
 
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
                     b.HasKey("Id");
 
                     b.ToTable("ContributionCycles");
@@ -99,12 +93,6 @@ namespace RondiTrack.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 
@@ -127,12 +115,6 @@ namespace RondiTrack.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
-
                     b.HasKey("UserId", "StokvelId");
 
                     b.HasIndex("StokvelId");
@@ -154,12 +136,6 @@ namespace RondiTrack.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
-
-                    b.Property<uint>("Version")
-                        .IsConcurrencyToken()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("xid")
-                        .HasColumnName("xmin");
 
                     b.HasKey("Id");
 

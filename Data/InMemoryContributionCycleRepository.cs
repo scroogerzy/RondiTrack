@@ -65,4 +65,26 @@ public class InMemoryContributionCycleRepository
 
         return Task.FromResult(true);
     }
+    public Task<IReadOnlyList<ContributionCycle>> GetPageByStokvelAsync(
+        Guid stokvelId,
+        ContributionCyclePageQuery query)
+    {
+        IEnumerable<ContributionCycle> cycles = _cycles.Where(c => c.StokvelId == stokvelId);
+        if (query.LastPeriodNumber.HasValue && query.LastId.HasValue)
+        {
+            var period = query.LastPeriodNumber.Value;
+            var id = query.LastId.Value;
+            cycles = query.Descending
+                ? cycles.Where(c => c.PeriodNumber < period || (c.PeriodNumber == period && c.Id.CompareTo(id) < 0))
+                : cycles.Where(c => c.PeriodNumber > period || (c.PeriodNumber == period && c.Id.CompareTo(id) > 0));
+        }
+
+        cycles = query.Descending
+            ? cycles.OrderByDescending(c => c.PeriodNumber).ThenByDescending(c => c.Id)
+            : cycles.OrderBy(c => c.PeriodNumber).ThenBy(c => c.Id);
+
+        return Task.FromResult<IReadOnlyList<ContributionCycle>>(
+            cycles.Take(query.PageSize + 1).ToList());
+    }
+
 }

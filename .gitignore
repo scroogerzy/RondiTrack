@@ -2,3 +2,15 @@ bin/
 obj/
 .vs/
 .vscode/
+
+# Local-only assignment patch tooling and backup files
+/Apply-Assignment53.ps1
+/RUN-ME.txt
+/payload/
+*.bak
+*.before-*
+cycle-error.log
+artifacts/assignment53-test-diagnostic.log
+artifacts/assignment53-test-after-concurrency-fix.log
+# Local database credentials
+/appsettings.Development.json

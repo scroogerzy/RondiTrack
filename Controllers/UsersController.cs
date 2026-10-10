@@ -91,6 +91,19 @@ public class UsersController : ControllerBase
 
         try
         {
+            if (request.Version == 0)
+            {
+                return ProblemResponses.BadRequest(
+                    "The Version token is required.",
+                    HttpContext.Request.Path);
+            }
+
+            if (request.Version != user.Version)
+            {
+                return ProblemResponses.Conflict(
+                    "The user changed after it was read. Reload it and retry.",
+                    HttpContext.Request.Path);
+            }
             user.UpdateFullName(request.FullName);
             user.UpdateEmail(request.Email);
 

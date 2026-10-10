@@ -6,6 +6,7 @@ namespace RondiTrack.Models;
 public class ContributionCycle
 {
     public Guid Id { get; private set; }
+    public uint Version { get; private set; }
 
     public Guid StokvelId { get; private set; }
 

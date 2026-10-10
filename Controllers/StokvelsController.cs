@@ -1,3 +1,4 @@
+
 using Microsoft.AspNetCore.Mvc;
 using RondiTrack.Common;
 using RondiTrack.Data;
@@ -9,11 +10,10 @@ using RondiTrack.Models;
 using RondiTrack.Services;
 
 namespace RondiTrack.Controllers;
+
 /// <summary>
-/// Creates a new user.
+/// Manages stokvels, memberships, and contribution recording.
 /// </summary>
-/// <response code="201">User created.</response>
-/// <response code="400">Validation failed.</response>
 [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
@@ -23,19 +23,29 @@ public class StokvelsController : ControllerBase
     private readonly IStokvelRepository _stokvelRepository;
     private readonly IUserRepository _userRepository;
     private readonly IStokvelService _stokvelService;
+    private readonly IStokvelMemberRepository _stokvelMemberRepository;
 
+    /// <summary>
+    /// Receives the repositories and service required by the endpoints.
+    /// </summary>
     public StokvelsController(
         IStokvelRepository stokvelRepository,
         IUserRepository userRepository,
-        IStokvelService stokvelService)
+        IStokvelService stokvelService,
+        IStokvelMemberRepository stokvelMemberRepository)
     {
         _stokvelRepository = stokvelRepository;
         _userRepository = userRepository;
         _stokvelService = stokvelService;
+        _stokvelMemberRepository = stokvelMemberRepository;
     }
 
+    /// <summary>
+    /// Retrieves all stokvels.
+    /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<StokvelResponse>>> GetStokvelsAsync()
+    public async Task<ActionResult<IEnumerable<StokvelResponse>>>
+        GetStokvelsAsync()
     {
         var stokvels = await _stokvelRepository.GetAllAsync();
 
@@ -46,9 +56,12 @@ public class StokvelsController : ControllerBase
         return Ok(response);
     }
 
+    /// <summary>
+    /// Retrieves one stokvel by its ID.
+    /// </summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<StokvelResponse>> GetStokvelByIdAsync(
-        Guid id)
+    public async Task<ActionResult<StokvelResponse>>
+        GetStokvelByIdAsync(Guid id)
     {
         var stokvel = await _stokvelRepository.GetByIdAsync(id);
 
@@ -62,9 +75,12 @@ public class StokvelsController : ControllerBase
         return Ok(stokvel.ToResponse());
     }
 
+    /// <summary>
+    /// Creates and persists a stokvel.
+    /// </summary>
     [HttpPost]
-    public async Task<ActionResult<StokvelResponse>> CreateStokvelAsync(
-        CreateStokvelRequest request)
+    public async Task<ActionResult<StokvelResponse>>
+        CreateStokvelAsync(CreateStokvelRequest request)
     {
         try
         {
@@ -87,6 +103,9 @@ public class StokvelsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Updates an existing stokvel.
+    /// </summary>
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateStokvelAsync(
         Guid id,
@@ -103,10 +122,30 @@ public class StokvelsController : ControllerBase
 
         try
         {
+            if (request.Version == 0)
+            {
+                return ProblemResponses.BadRequest(
+                    "The Version token is required.",
+                    HttpContext.Request.Path);
+            }
+
+            if (request.Version != stokvel.Version)
+            {
+                return ProblemResponses.Conflict(
+                    "The stokvel changed after it was read. Reload it and retry.",
+                    HttpContext.Request.Path);
+            }
             stokvel.UpdateName(request.Name);
             stokvel.UpdateContribution(request.MonthlyContribution);
 
-            await _stokvelRepository.UpdateAsync(stokvel);
+            var updated = await _stokvelRepository.UpdateAsync(stokvel);
+
+            if (!updated)
+            {
+                return ProblemResponses.NotFound(
+                    $"Stokvel '{id}' was not found.",
+                    HttpContext.Request.Path);
+            }
 
             return NoContent();
         }
@@ -118,6 +157,10 @@ public class StokvelsController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Deletes an existing stokvel.
+    /// PostgreSQL foreign-key rules remain in force.
+    /// </summary>
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteStokvelAsync(Guid id)
     {
@@ -133,11 +176,17 @@ public class StokvelsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Retrieves the users belonging to a stokvel by reading
+    /// the persisted StokvelMembers relationship.
+    /// </summary>
     [HttpGet("{stokvelId:guid}/members")]
-    public async Task<ActionResult<IEnumerable<UserResponse>>> GetMembersAsync(
-        Guid stokvelId)
+    public async Task<ActionResult<IEnumerable<UserResponse>>>
+        GetMembersAsync(Guid stokvelId)
     {
-        var stokvel = await _stokvelRepository.GetByIdAsync(stokvelId);
+        // Verify that the stokvel exists.
+        var stokvel =
+            await _stokvelRepository.GetByIdAsync(stokvelId);
 
         if (stokvel is null)
         {
@@ -146,11 +195,18 @@ public class StokvelsController : ControllerBase
                 HttpContext.Request.Path);
         }
 
+        // Retrieve memberships from the repository, not MemberIds.
+        var memberships =
+            await _stokvelMemberRepository
+                .GetByStokvelIdAsync(stokvelId);
+
         var members = new List<UserResponse>();
 
-        foreach (var memberId in stokvel.MemberIds)
+        // Load each associated user and map it to the API response.
+        foreach (var membership in memberships)
         {
-            var user = await _userRepository.GetByIdAsync(memberId);
+            var user =
+                await _userRepository.GetByIdAsync(membership.UserId);
 
             if (user is not null)
             {
@@ -161,6 +217,9 @@ public class StokvelsController : ControllerBase
         return Ok(members);
     }
 
+    /// <summary>
+    /// Adds a user to a stokvel using the service's business rules.
+    /// </summary>
     [HttpPost("{stokvelId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> AddMemberAsync(
         Guid stokvelId,
@@ -202,6 +261,9 @@ public class StokvelsController : ControllerBase
         };
     }
 
+    /// <summary>
+    /// Removes a user from a stokvel.
+    /// </summary>
     [HttpDelete("{stokvelId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> RemoveMemberAsync(
         Guid stokvelId,
@@ -221,12 +283,16 @@ public class StokvelsController : ControllerBase
         return NoContent();
     }
 
+    /// <summary>
+    /// Records a contribution using the supplied idempotency key.
+    /// </summary>
     [HttpPost("{stokvelId:guid}/members/{userId:guid}/contributions")]
-    public async Task<ActionResult<ContributionResponse>> RecordContributionAsync(
-        Guid stokvelId,
-        Guid userId,
-        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
-        RecordContributionRequest request)
+    public async Task<ActionResult<ContributionResponse>>
+        RecordContributionAsync(
+            Guid stokvelId,
+            Guid userId,
+            [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+            RecordContributionRequest request)
     {
         if (string.IsNullOrWhiteSpace(idempotencyKey))
         {

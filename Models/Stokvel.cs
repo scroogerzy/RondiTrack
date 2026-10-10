@@ -11,8 +11,9 @@ public class Stokvel
     private readonly List<Guid> _memberIds = new();
 
     public Guid Id { get; private set; }
+    public uint Version { get; private set; }
 
-    public string Name { get; private set; }
+    public string Name { get; private set; } = null!;
 
     // Decimal is the correct choice for money because it avoids
     // floating-point precision issues.

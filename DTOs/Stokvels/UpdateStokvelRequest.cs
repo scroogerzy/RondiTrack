@@ -5,4 +5,5 @@ namespace RondiTrack.DTOs.Stokvels;
 /// </summary>
 public record UpdateStokvelRequest(
     string Name,
-    decimal MonthlyContribution);
+    decimal MonthlyContribution,
+    uint Version);

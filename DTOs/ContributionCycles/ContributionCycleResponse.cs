@@ -6,4 +6,5 @@ public record ContributionCycleResponse(
     int PeriodNumber,
     DateTime StartDate,
     DateTime EndDate,
-    decimal TargetAmount);
+    decimal TargetAmount,
+    uint Version);

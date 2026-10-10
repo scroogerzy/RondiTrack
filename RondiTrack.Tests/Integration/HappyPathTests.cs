@@ -9,7 +9,8 @@ namespace RondiTrack.Tests.Integration;
 /// Integration tests for successful API operations.
 /// These tests use the real ASP.NET Core pipeline through WebApplicationFactory.
 /// </summary>
-public class HappyPathTests : IClassFixture<ApiTestFactory>
+[Collection("RondiTrack PostgreSQL collection")]
+public class HappyPathTests
 {
     private readonly HttpClient _client;
 
