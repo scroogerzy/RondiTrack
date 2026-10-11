@@ -1,3 +1,4 @@
+﻿using RondiTrack.Tests.TestSupport;
 using System.Net;
 using System.Net.Http.Json;
 using RondiTrack.DTOs.Stokvels;
@@ -9,12 +10,12 @@ namespace RondiTrack.Tests.Integration;
 /// Integration tests for successful API operations.
 /// These tests use the real ASP.NET Core pipeline through WebApplicationFactory.
 /// </summary>
-[Collection("RondiTrack PostgreSQL collection")]
+[Collection("Postgres collection")]
 public class HappyPathTests
 {
     private readonly HttpClient _client;
 
-    public HappyPathTests(ApiTestFactory factory)
+    public HappyPathTests(PostgresApiFactory factory)
     {
         _client = factory.CreateClient();
     }

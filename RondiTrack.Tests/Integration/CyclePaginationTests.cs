@@ -1,3 +1,4 @@
+﻿using RondiTrack.Tests.TestSupport;
 using System.Net;
 using System.Net.Http.Json;
 using RondiTrack.DTOs.ContributionCycles;
@@ -7,12 +8,12 @@ namespace RondiTrack.Tests.Integration;
 
 // Week 5 Day 3 pagination contract test: keep fetching with the opaque cursor
 // until nextPageToken is empty, and prove no cycle is duplicated or skipped.
-[Collection("RondiTrack PostgreSQL collection")]
+[Collection("Postgres collection")]
 public sealed class CyclePaginationTests
 {
     private readonly HttpClient _client;
 
-    public CyclePaginationTests(ApiTestFactory factory) => _client = factory.CreateClient();
+    public CyclePaginationTests(PostgresApiFactory factory) => _client = factory.CreateClient();
 
     [Fact]
     public async Task Walking_cycle_pages_returns_each_cycle_once_then_an_empty_token()

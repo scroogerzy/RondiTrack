@@ -1,9 +1,11 @@
 #nullable enable
 
 using System.Linq;
-using RondiTrack.Data;
+using RondiTrack.Domain.Repositories;
+using RondiTrack.Infrastructure.Data;
+using RondiTrack.API.Data;
 using RondiTrack.DTOs.Contributions;
-using RondiTrack.Models;
+using RondiTrack.Domain.Models;
 using RondiTrack.Services;
 
 namespace RondiTrack.Tests.Unit;

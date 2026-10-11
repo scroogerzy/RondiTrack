@@ -1,3 +1,4 @@
+﻿using RondiTrack.Tests.TestSupport;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -8,13 +9,14 @@ namespace RondiTrack.Tests.Integration;
 ///
 /// The same request with the same key should be safe to retry.
 /// Reusing a key with a different payload should be rejected.
-[Collection("RondiTrack PostgreSQL collection")]
+
+[Collection("Postgres collection")]
 public class IdempotencyTests
 {
     private readonly HttpClient _client;
 
     /// Creates an HTTP client for testing the real RondiTrack API.
-    public IdempotencyTests(ApiTestFactory factory)
+    public IdempotencyTests(PostgresApiFactory factory)
     {
         _client = factory.CreateClient();
     }
