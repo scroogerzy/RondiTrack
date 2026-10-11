@@ -1,9 +1,12 @@
+﻿using RondiTrack.Tests.TestSupport;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
-using RondiTrack.Data;
+using RondiTrack.Domain.Repositories;
+using RondiTrack.Infrastructure.Data;
+using RondiTrack.API.Data;
 using RondiTrack.DTOs.ContributionCycles;
 using RondiTrack.DTOs.Stokvels;
 
@@ -11,13 +14,14 @@ namespace RondiTrack.Tests.Integration;
 
 // Follows the Bitcube/Matric Compass Week 5 Day 3 concurrency pattern:
 // two independent DbContexts, deterministic save order, no sleeps or parallel tasks.
-[Collection("RondiTrack PostgreSQL collection")]
+
+[Collection("Postgres collection")]
 public sealed class ConcurrencyTests
 {
-    private readonly ApiTestFactory _factory;
+    private readonly PostgresApiFactory _factory;
     private readonly HttpClient _client;
 
-    public ConcurrencyTests(ApiTestFactory factory)
+    public ConcurrencyTests(PostgresApiFactory factory)
     {
         _factory = factory;
         _client = factory.CreateClient();

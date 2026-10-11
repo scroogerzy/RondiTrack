@@ -1,19 +1,22 @@
+﻿using RondiTrack.Tests.TestSupport;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
-using RondiTrack.Data;
-using RondiTrack.Models;
+using RondiTrack.Domain.Repositories;
+using RondiTrack.Infrastructure.Data;
+using RondiTrack.API.Data;
+using RondiTrack.Domain.Models;
 
 namespace RondiTrack.Tests.Integration;
 
 // Follows the Bitcube/Matric Compass Week 5 Day 3 ConstraintTests pattern:
 // write directly through DbContext so StokvelService's pre-check is bypassed.
-[Collection("RondiTrack PostgreSQL collection")]
+[Collection("Postgres collection")]
 public sealed class ContributionConstraintTests
 {
-    private readonly ApiTestFactory _factory;
+    private readonly PostgresApiFactory _factory;
 
-    public ContributionConstraintTests(ApiTestFactory factory) => _factory = factory;
+    public ContributionConstraintTests(PostgresApiFactory factory) => _factory = factory;
 
     [Fact]
     public async Task Duplicate_contribution_is_rejected_by_the_database_unique_index()

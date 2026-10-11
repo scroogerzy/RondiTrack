@@ -1,3 +1,4 @@
+﻿using RondiTrack.Tests.TestSupport;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -8,15 +9,16 @@ using Xunit;
 namespace RondiTrack.Tests;
 
 /// Integration tests that send HTTP requests through the RondiTrack API.
-/// ApiTestFactory starts the real application for these tests.
-[Collection("RondiTrack PostgreSQL collection")]
+/// PostgresApiFactory starts the real application for these tests.
+
+[Collection("Postgres collection")]
 public class EdgeCaseTests
 {
     private readonly HttpClient _client;
 
     /// Receives the existing test factory and creates an HTTP client
     /// for sending requests to the application.
-    public EdgeCaseTests(ApiTestFactory factory)
+    public EdgeCaseTests(PostgresApiFactory factory)
     {
         _client = factory.CreateClient();
     }

@@ -14,3 +14,6 @@ artifacts/assignment53-test-diagnostic.log
 artifacts/assignment53-test-after-concurrency-fix.log
 # Local database credentials
 /appsettings.Development.json
+
+# Local development settings
+**/appsettings.Development.json

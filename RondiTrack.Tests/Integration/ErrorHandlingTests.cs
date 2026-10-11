@@ -1,3 +1,4 @@
+﻿using RondiTrack.Tests.TestSupport;
 
 using System;
 using System.Linq;
@@ -11,12 +12,12 @@ namespace RondiTrack.Tests.Integration;
 /// <summary>
 /// Verifies that the API exposes the documented failure contract.
 /// </summary>
-[Collection("RondiTrack PostgreSQL collection")]
+[Collection("Postgres collection")]
 public class ErrorHandlingTests
 {
     private readonly HttpClient _client;
 
-    public ErrorHandlingTests(ApiTestFactory factory)
+    public ErrorHandlingTests(PostgresApiFactory factory)
     {
         _client = factory.CreateClient();
     }

@@ -1,3 +1,4 @@
+﻿using RondiTrack.Tests.TestSupport;
 using System.Net;
 using System.Net.Http.Json;
 using RondiTrack.DTOs.ContributionCycles;
@@ -9,12 +10,12 @@ namespace RondiTrack.Tests.Integration;
 
 // This hits the real endpoint so EF's emitted WHERE / ORDER BY / LIMIT SQL
 // appears in the test log for the Assignment 5.3 query-plan evidence.
-[Collection("RondiTrack PostgreSQL collection")]
+[Collection("Postgres collection")]
 public sealed class ContributionPaginationTests
 {
     private readonly HttpClient _client;
 
-    public ContributionPaginationTests(ApiTestFactory factory) => _client = factory.CreateClient();
+    public ContributionPaginationTests(PostgresApiFactory factory) => _client = factory.CreateClient();
 
     [Fact]
     public async Task Walking_pages_returns_each_contribution_once_then_an_empty_token()

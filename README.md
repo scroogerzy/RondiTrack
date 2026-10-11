@@ -1261,3 +1261,43 @@ CommandTimeout='30']
 The full test/SQL log is rtifacts/assignment53-dotnet-test-and-sql.log; seed/cleanup/restore logs are stored under rtifacts/.
 
 <!-- ASSIGNMENT_5_3_AUTORUN_RESULT_END -->
+
+## Assignment 5.4 — Clean Architecture & Self-Contained Tests
+
+### Project structure
+
+- **Domain:** Domain models, domain exceptions, and repository contracts.
+- **Infrastructure:** EF Core persistence, PostgreSQL, repository implementations, and migrations.
+- **API:** Controllers, DTOs, validation, middleware, services, and dependency-injection configuration.
+- **RondiTrack.Tests:** Unit and integration tests.
+
+### Dependency-injection lifetime audit
+
+| Service | Implementation | Lifetime |
+|---|---|---|
+| `RondiTrackDbContext` | EF Core DbContext | Scoped |
+| `IUserRepository` | `EfUserRepository` | Scoped |
+| `IStokvelRepository` | `EfStokvelRepository` | Scoped |
+| `IStokvelMemberRepository` | `EfStokvelMemberRepository` | Scoped |
+| `IContributionRepository` | `EfContributionRepository` | Scoped |
+| `IContributionCycleRepository` | `EfContributionCycleRepository` | Scoped |
+| `IIdempotencyStore` | `InMemoryIdempotencyStore` | Singleton |
+| `IStokvelService` | `StokvelService` | Scoped |
+
+The in-memory idempotency store is not durable or shared across multiple API instances.
+
+### Self-contained integration tests
+
+The integration-test factory starts a PostgreSQL 17 test container and provides its connection string to `WebApplicationFactory<Program>`. The tests do not require a separately running developer PostgreSQL database.
+
+The successful local test run used these environment overrides to work around the Testcontainers issue in this environment: `TESTCONTAINERS_RYUK_DISABLED=true` and `TESTCONTAINERS_RYUK_CONTAINER_IMAGE=testcontainers/ryuk:0.14.0`. Ryuk was disabled for that run, so the fixture explicitly disposes of its PostgreSQL container.
+
+### Verified test result
+
+- Date: 11 October 2026
+- Total tests: **26**
+- Passed: **26**
+- Failed: **0**
+- Skipped: **0**
+
+The full test suite passed in the recorded run. Re-run the tests after subsequent code changes.
