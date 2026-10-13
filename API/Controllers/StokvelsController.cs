@@ -1,3 +1,5 @@
+using Microsoft.AspNetCore.Authorization;
+using RondiTrack.Auth;
 
 using Microsoft.AspNetCore.Mvc;
 using RondiTrack.Common;
@@ -45,6 +47,7 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Retrieves all stokvels.
     /// </summary>
+    [Authorize(Roles = "PlatformAdmin")]
     [HttpGet]
     public async Task<ActionResult<IEnumerable<StokvelResponse>>>
         GetStokvelsAsync()
@@ -61,6 +64,7 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Retrieves one stokvel by its ID.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelMember)]
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<StokvelResponse>>
         GetStokvelByIdAsync(Guid id)
@@ -92,6 +96,14 @@ public class StokvelsController : ControllerBase
 
             await _stokvelRepository.AddAsync(stokvel);
 
+            // The authenticated creator becomes Chairperson of the new stokvel.
+            if (Guid.TryParse(User.FindFirst("sub")?.Value, out var creatorId) &&
+                await _userRepository.GetByIdAsync(creatorId) is not null)
+            {
+                await _stokvelMemberRepository.AddAsync(new StokvelMember(
+                    creatorId, stokvel.Id, StokvelRoles.Chairperson, DateTime.UtcNow));
+            }
+
             return CreatedAtAction(
                 nameof(GetStokvelByIdAsync),
                 new { id = stokvel.Id },
@@ -108,6 +120,7 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Updates an existing stokvel.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPut("{id:guid}")]
     public async Task<IActionResult> UpdateStokvelAsync(
         Guid id,
@@ -163,6 +176,7 @@ public class StokvelsController : ControllerBase
     /// Deletes an existing stokvel.
     /// PostgreSQL foreign-key rules remain in force.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpDelete("{id:guid}")]
     public async Task<IActionResult> DeleteStokvelAsync(Guid id)
     {
@@ -182,6 +196,7 @@ public class StokvelsController : ControllerBase
     /// Retrieves the users belonging to a stokvel by reading
     /// the persisted StokvelMembers relationship.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelMember)]
     [HttpGet("{stokvelId:guid}/members")]
     public async Task<ActionResult<IEnumerable<UserResponse>>>
         GetMembersAsync(Guid stokvelId)
@@ -222,6 +237,7 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Adds a user to a stokvel using the service's business rules.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPost("{stokvelId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> AddMemberAsync(
         Guid stokvelId,
@@ -266,6 +282,7 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Removes a user from a stokvel.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpDelete("{stokvelId:guid}/members/{userId:guid}")]
     public async Task<IActionResult> RemoveMemberAsync(
         Guid stokvelId,
@@ -288,6 +305,7 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Records a contribution using the supplied idempotency key.
     /// </summary>
+    [StokvelAuthorize(Policies.RecordContribution)]
     [HttpPost("{stokvelId:guid}/members/{userId:guid}/contributions")]
     public async Task<ActionResult<ContributionResponse>>
         RecordContributionAsync(

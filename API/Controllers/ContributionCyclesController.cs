@@ -1,3 +1,4 @@
+using RondiTrack.Auth;
 using Microsoft.AspNetCore.Mvc;
 using RondiTrack.Common;
 using RondiTrack.Domain.Repositories;
@@ -35,6 +36,7 @@ public class ContributionCyclesController : ControllerBase
     }
 
     /// Returns contribution cycles in deterministic, keyset-paginated order.
+    [StokvelAuthorize(Policies.StokvelMember)]
     [HttpGet]
     public async Task<ActionResult<ContributionCyclePageResponse>> GetCycles(
         Guid stokvelId,
@@ -145,6 +147,7 @@ public class ContributionCyclesController : ControllerBase
     /// Returns a bounded, keyset-paginated page of contributions for a cycle.
     /// The page token is bound to the cycle, filters and sort order that created it.
     /// </summary>
+    [StokvelAuthorize(Policies.StokvelMember)]
     [HttpGet("{cycleId:guid}/contributions")]
     public async Task<ActionResult<ContributionPageResponse>> GetContributions(
         Guid stokvelId,
@@ -271,6 +274,7 @@ public class ContributionCyclesController : ControllerBase
             effectivePageSize));
     }
 
+    [StokvelAuthorize(Policies.StokvelMember)]
     [HttpGet("{cycleId:guid}")]
     public async Task<ActionResult<
         ContributionCycleResponse>>
@@ -292,6 +296,7 @@ public class ContributionCyclesController : ControllerBase
         return Ok(cycle.ToResponse());
     }
 
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPost]
     public async Task<ActionResult<
         ContributionCycleResponse>>
@@ -329,6 +334,7 @@ public class ContributionCyclesController : ControllerBase
             cycle.ToResponse());
     }
 
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPut("{cycleId:guid}")]
     public async Task<IActionResult>
         UpdateCycle(
@@ -371,6 +377,7 @@ public class ContributionCyclesController : ControllerBase
         return NoContent();
     }
 
+    [StokvelAuthorize(Policies.StokvelManager)]
     [HttpDelete("{cycleId:guid}")]
     public async Task<IActionResult>
         DeleteCycle(
@@ -390,4 +397,20 @@ public class ContributionCyclesController : ControllerBase
 
         return NoContent();
     }
+    /// <summary>Records that the payout for a contribution cycle has been processed.</summary>
+    [StokvelAuthorize(Policies.StokvelManager)]
+    [HttpPost("{cycleId:guid}/payout")]
+    public async Task<IActionResult> ProcessPayout(Guid stokvelId, Guid cycleId)
+    {
+        var cycle = await _cycleRepository.GetByIdAsync(cycleId);
+        if (cycle is null || cycle.StokvelId != stokvelId)
+            return ProblemResponses.NotFound(
+                $"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.",
+                HttpContext.Request.Path);
+
+        cycle.ProcessPayout(DateTime.UtcNow);
+        await _cycleRepository.UpdateAsync(cycle);
+        return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
+    }
+
 }

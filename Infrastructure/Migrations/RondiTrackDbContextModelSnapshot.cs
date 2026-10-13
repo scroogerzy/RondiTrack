@@ -76,6 +76,9 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.Property<decimal>("TargetAmount")
                         .HasColumnType("numeric");
 
+                    b.Property<DateTime?>("PayoutProcessedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
                         .ValueGeneratedOnAddOrUpdate()
@@ -140,6 +143,24 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.ToTable("StokvelMembers");
                 });
 
+            modelBuilder.Entity("RondiTrack.Domain.Models.RefreshToken", b =>
+                {
+                    b.Property<Guid>("Id").HasColumnType("uuid");
+                    b.Property<DateTime>("CreatedAt").HasColumnType("timestamp with time zone");
+                    b.Property<DateTime>("ExpiresAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid>("FamilyId").HasColumnType("uuid");
+                    b.Property<DateTime?>("RevokedAt").HasColumnType("timestamp with time zone");
+                    b.Property<Guid?>("ReplacedByTokenId").HasColumnType("uuid");
+                    b.Property<string>("TokenHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
+                    b.Property<Guid>("UserId").HasColumnType("uuid");
+                    b.Property<uint>("Version").IsConcurrencyToken().ValueGeneratedOnAddOrUpdate().HasColumnType("xid").HasColumnName("xmin");
+                    b.HasKey("Id");
+                    b.HasIndex("FamilyId");
+                    b.HasIndex("TokenHash").IsUnique();
+                    b.HasIndex("UserId");
+                    b.ToTable("RefreshTokens");
+                });
+
             modelBuilder.Entity("RondiTrack.Domain.Models.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -149,6 +170,16 @@ namespace RondiTrack.Infrastructure.Migrations
                         .IsRequired()
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
+
+                    b.Property<string>("PlatformRole")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasDefaultValue("User")
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("PasswordHash")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
 
                     b.Property<string>("FullName")
                         .IsRequired()
@@ -162,6 +193,10 @@ namespace RondiTrack.Infrastructure.Migrations
                         .HasColumnName("xmin");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("Email")
+                        .IsUnique()
+                        .HasDatabaseName("IX_Users_Email");
 
                     b.ToTable("Users");
                 });
@@ -187,6 +222,15 @@ namespace RondiTrack.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Stokvel");
+                });
+
+            modelBuilder.Entity("RondiTrack.Domain.Models.RefreshToken", b =>
+                {
+                    b.HasOne("RondiTrack.Domain.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("RondiTrack.Domain.Models.StokvelMember", b =>

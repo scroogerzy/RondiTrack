@@ -17,6 +17,8 @@ public class ContributionCycle
     public DateTime EndDate { get; private set; }
 
     public decimal TargetAmount { get; private set; }
+
+    public DateTime? PayoutProcessedAtUtc { get; private set; }
 // Navigation back to the parent stokvel.
 public Stokvel Stokvel { get; private set; } = null!;
 // A contribution cycle contains the contributions recorded for that period.
@@ -82,6 +84,19 @@ public ICollection<Contribution> Contributions { get; private set; }
         StartDate = startDate;
         EndDate = endDate;
         TargetAmount = targetAmount;
+    }
+
+
+    public void ProcessPayout(DateTime processedAtUtc)
+    {
+        if (PayoutProcessedAtUtc is not null)
+            throw new RondiTrack.Domain.Exceptions.ConflictException(
+                "The payout for this contribution cycle has already been processed.");
+
+        if (processedAtUtc.Kind != DateTimeKind.Utc)
+            throw new ArgumentException("Payout processing time must be UTC.", nameof(processedAtUtc));
+
+        PayoutProcessedAtUtc = processedAtUtc;
     }
 
     // EF Core uses this constructor when materializing

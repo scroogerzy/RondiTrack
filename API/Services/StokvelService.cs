@@ -1,3 +1,4 @@
+using RondiTrack.Auth;
 ﻿using RondiTrack.API.Data;
 using RondiTrack.Domain.Models;
 using RondiTrack.Domain.Repositories;
@@ -74,7 +75,7 @@ public class StokvelService : IStokvelService
         var membership = new StokvelMember(
             userId,
             stokvelId,
-            "Member",
+            StokvelRoles.Member,
             DateTime.UtcNow);
 
         await _memberRepository.AddAsync(membership);
