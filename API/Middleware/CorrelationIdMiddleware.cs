@@ -1,30 +1,25 @@
+using System.Diagnostics;
+
 namespace RondiTrack.Middleware;
 
-/// <summary>
-/// Adds a correlation id to every request.
-/// </summary>
 public sealed class CorrelationIdMiddleware
 {
     private const string HeaderName = "X-Correlation-ID";
-
     private readonly RequestDelegate _next;
 
-    public CorrelationIdMiddleware(
-        RequestDelegate next)
-    {
-        _next = next;
-    }
+    public CorrelationIdMiddleware(RequestDelegate next) => _next = next;
 
-    public async Task InvokeAsync(
-        HttpContext context)
+    public async Task InvokeAsync(HttpContext context)
     {
-        var correlationId =
-            context.Request.Headers[HeaderName].FirstOrDefault()
-            ?? Guid.NewGuid().ToString();
+        var correlationId = Activity.Current?.TraceId.ToString()
+            ?? context.TraceIdentifier;
 
         context.Items[HeaderName] = correlationId;
-
-        context.Response.Headers[HeaderName] = correlationId;
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers[HeaderName] = correlationId;
+            return Task.CompletedTask;
+        });
 
         await _next(context);
     }

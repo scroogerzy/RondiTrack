@@ -1,3 +1,5 @@
+using OpenTelemetry.Metrics;
+using OpenTelemetry.Trace;
 
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -107,6 +109,35 @@ builder.Services.AddSingleton<
 // Register the business service.
 builder.Services.AddScoped<IStokvelService, StokvelService>();
 
+
+// Assignment 6.2: OpenTelemetry traces, metrics and logs.
+builder.Services.AddSingleton<RondiTrackMetrics>();
+
+var telemetry = builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("ronditrack-api"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation(options =>
+            options.Filter = context =>
+                !context.Request.Path.StartsWithSegments("/health"))
+        .AddNpgsql())
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddMeter("System.Runtime")
+        .AddMeter(RondiTrackMetrics.MeterName))
+    .WithLogging();
+
+if (!string.IsNullOrWhiteSpace(
+        builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+{
+    telemetry.UseOtlpExporter();
+}
+
+// PostgreSQL readiness check; liveness does not depend on the database.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<RondiTrackDbContext>(
+        name: "postgres",
+        tags: new[] { "ready" });
+
 var app = builder.Build();
 
 // Apply pending migrations and add basic starter records when needed.
@@ -159,6 +190,22 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+
+// Liveness checks the process only. Readiness checks PostgreSQL.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = async (context, report) =>
+        await context.Response.WriteAsync(report.Status.ToString())
+}).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+        await context.Response.WriteAsync(report.Status.ToString())
+}).AllowAnonymous();
+
 // Expose documentation endpoints in Development only.
 if (app.Environment.IsDevelopment())
 {
@@ -195,6 +242,10 @@ app.UseStatusCodePages(async context =>
             : "You do not have permission to perform this operation.",
         Instance = httpContext.Request.Path
     };
+
+    problem.Extensions["correlationId"] =
+        System.Diagnostics.Activity.Current?.TraceId.ToString()
+        ?? httpContext.TraceIdentifier;
 
     response.ContentType = "application/problem+json";
     await System.Text.Json.JsonSerializer.SerializeAsync(

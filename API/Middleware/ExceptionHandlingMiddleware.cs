@@ -1,4 +1,4 @@
-
+using System.Diagnostics;
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -7,9 +7,6 @@ using RondiTrack.Domain.Exceptions;
 
 namespace RondiTrack.Middleware;
 
-/// <summary>
-/// Handles application and database exceptions centrally.
-/// </summary>
 public sealed class ExceptionHandlingMiddleware
 {
     private readonly RequestDelegate _next;
@@ -31,117 +28,77 @@ public sealed class ExceptionHandlingMiddleware
         }
         catch (Exception exception)
         {
-            await HandleExceptionAsync(context, exception);
+            var postgres = FindPostgresException(exception);
+            var (status, title, type, detail) = exception switch
+            {
+                DbUpdateConcurrencyException =>
+                    (409, "Conflict", "conflict",
+                    "The resource changed. Reload it and retry."),
+                AuthenticationFailedException =>
+                    (401, "Unauthorized", "unauthorized",
+                    "Authentication failed."),
+                NotFoundException =>
+                    (404, "Not Found", "not-found",
+                    "The requested resource was not found."),
+                ConflictException =>
+                    (409, "Conflict", "conflict",
+                    "The request conflicts with existing data."),
+                BusinessRuleException =>
+                    (422, "Unprocessable Entity", "unprocessable-entity",
+                    "The request could not be processed."),
+                _ when postgres?.SqlState == PostgresErrorCodes.UniqueViolation =>
+                    (409, "Conflict", "conflict",
+                    "A record with these values already exists."),
+                _ =>
+                    (500, "Internal Server Error", "internal-server-error",
+                    "An unexpected error occurred.")
+            };
+
+            var traceId = Activity.Current?.TraceId.ToString()
+                ?? context.TraceIdentifier;
+
+            if (status >= 500)
+            {
+                _logger.LogError(exception,
+                    "Request failed with status {StatusCode}. TraceId: {TraceId}",
+                    status, traceId);
+            }
+            else
+            {
+                _logger.LogInformation(
+                    "Request rejected with status {StatusCode}; exception type {ExceptionType}. TraceId: {TraceId}",
+                    status, exception.GetType().Name, traceId);
+            }
+
+            if (context.Response.HasStarted)
+                throw;
+
+            context.Response.Clear();
+            context.Response.StatusCode = status;
+            context.Response.ContentType = "application/problem+json";
+
+            var problem = new ProblemDetails
+            {
+                Type = $"https://api.ronditrack.co.za/errors/{type}",
+                Title = title,
+                Status = status,
+                Detail = detail,
+                Instance = context.Request.Path
+            };
+            problem.Extensions["correlationId"] = traceId;
+
+            await context.Response.WriteAsync(
+                JsonSerializer.Serialize(problem));
         }
     }
 
-    private async Task HandleExceptionAsync(
-        HttpContext context,
-        Exception exception)
+    private static PostgresException? FindPostgresException(Exception exception)
     {
-        var correlationId =
-            context.Items["X-Correlation-ID"]?.ToString()
-            ?? Guid.NewGuid().ToString();
-
-        _logger.LogError(
-            exception,
-            "Request failed. CorrelationId: {CorrelationId}",
-            correlationId);
-
-        var postgresException = FindPostgresException(exception);
-
-        var (statusCode, title, type, detail) = exception switch
-        {
-            DbUpdateConcurrencyException =>
-                (
-                    StatusCodes.Status409Conflict,
-                    "Conflict",
-                    "https://api.ronditrack.co.za/errors/conflict",
-                    "The resource was changed by another request. Reload it and retry."
-                ),
-
-            RondiTrack.Domain.Exceptions.AuthenticationFailedException =>
-                (
-                    StatusCodes.Status401Unauthorized,
-                    "Unauthorized",
-                    "https://api.ronditrack.co.za/errors/unauthorized",
-                    exception.Message
-                ),
-
-            NotFoundException =>
-                (
-                    StatusCodes.Status404NotFound,
-                    "Not Found",
-                    "https://api.ronditrack.co.za/errors/not-found",
-                    exception.Message
-                ),
-
-            ConflictException =>
-                (
-                    StatusCodes.Status409Conflict,
-                    "Conflict",
-                    "https://api.ronditrack.co.za/errors/conflict",
-                    exception.Message
-                ),
-
-            BusinessRuleException =>
-                (
-                    StatusCodes.Status422UnprocessableEntity,
-                    "Unprocessable Entity",
-                    "https://api.ronditrack.co.za/errors/unprocessable-entity",
-                    exception.Message
-                ),
-
-            // PostgreSQL is the final authority for unique constraints.
-            // EF Core may wrap its PostgreSQL exception inside DbUpdateException.
-            _ when postgresException?.SqlState
-                == PostgresErrorCodes.UniqueViolation =>
-                (
-                    StatusCodes.Status409Conflict,
-                    "Conflict",
-                    "https://api.ronditrack.co.za/errors/conflict",
-                    "A record with these values already exists."
-                ),
-
-            _ =>
-                (
-                    StatusCodes.Status500InternalServerError,
-                    "Internal Server Error",
-                    "https://api.ronditrack.co.za/errors/internal-server-error",
-                    "An unexpected error occurred."
-                )
-        };
-
-        context.Response.Clear();
-        context.Response.ContentType = "application/problem+json";
-        context.Response.StatusCode = statusCode;
-
-        var problem = new ProblemDetails
-        {
-            Type = type,
-            Title = title,
-            Status = statusCode,
-            Detail = detail,
-            Instance = context.Request.Path
-        };
-
-        problem.Extensions["correlationId"] = correlationId;
-
-        await context.Response.WriteAsync(
-            JsonSerializer.Serialize(problem));
-    }
-
-    private static PostgresException? FindPostgresException(
-        Exception exception)
-    {
-        for (Exception? current = exception;
-             current is not null;
+        for (Exception? current = exception; current is not null;
              current = current.InnerException)
         {
-            if (current is PostgresException postgresException)
-            {
-                return postgresException;
-            }
+            if (current is PostgresException postgres)
+                return postgres;
         }
 
         return null;
