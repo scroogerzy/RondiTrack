@@ -25,6 +25,13 @@ public class EfUserRepository : IUserRepository
             .ToListAsync();
     }
 
+    public async Task<User?> GetByEmailAsync(string email)
+    {
+        var normalized = User.NormalizeEmail(email);
+        return await _dbContext.Users
+            .FirstOrDefaultAsync(user => user.Email == normalized);
+    }
+
     public async Task<User?> GetByIdAsync(Guid id)
     {
         // FindAsync uses the configured primary key to retrieve one User.
@@ -53,6 +60,8 @@ public class EfUserRepository : IUserRepository
         // The domain entity remains responsible for validating changes.
         existingUser.UpdateFullName(user.FullName);
         existingUser.UpdateEmail(user.Email);
+        if (user.PasswordHash is not null)
+            existingUser.SetPasswordHash(user.PasswordHash);
 
         await _dbContext.SaveChangesAsync();
 

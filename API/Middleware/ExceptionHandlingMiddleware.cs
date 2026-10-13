@@ -1,4 +1,4 @@
-﻿
+
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -58,6 +58,14 @@ public sealed class ExceptionHandlingMiddleware
                     "Conflict",
                     "https://api.ronditrack.co.za/errors/conflict",
                     "The resource was changed by another request. Reload it and retry."
+                ),
+
+            RondiTrack.Domain.Exceptions.AuthenticationFailedException =>
+                (
+                    StatusCodes.Status401Unauthorized,
+                    "Unauthorized",
+                    "https://api.ronditrack.co.za/errors/unauthorized",
+                    exception.Message
                 ),
 
             NotFoundException =>

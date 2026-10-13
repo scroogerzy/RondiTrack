@@ -63,6 +63,7 @@ public static class DomainMappings
         cycle.StartDate,
         cycle.EndDate,
         cycle.TargetAmount,
-        cycle.Version);
+        cycle.Version,
+        cycle.PayoutProcessedAtUtc);
 }
 }

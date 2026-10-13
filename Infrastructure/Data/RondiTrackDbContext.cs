@@ -17,6 +17,7 @@ public class RondiTrackDbContext : DbContext
     }
 
     public DbSet<User> Users => Set<User>();
+    public DbSet<RondiTrack.Domain.Models.RefreshToken> RefreshTokens => Set<RondiTrack.Domain.Models.RefreshToken>();
     public DbSet<Stokvel> Stokvels => Set<Stokvel>();
     public DbSet<StokvelMember> StokvelMembers => Set<StokvelMember>();
     public DbSet<ContributionCycle> ContributionCycles => Set<ContributionCycle>();
@@ -42,6 +43,32 @@ public class RondiTrackDbContext : DbContext
             entity.Property(user => user.Email)
                 .IsRequired()
                 .HasMaxLength(200);
+
+            entity.Property(user => user.PasswordHash)
+                .HasMaxLength(500);
+
+            entity.Property(user => user.PlatformRole)
+                .IsRequired()
+                .HasMaxLength(50)
+                .HasDefaultValue("User");
+
+            entity.HasIndex(user => user.Email)
+                .IsUnique()
+                .HasDatabaseName("IX_Users_Email");
+        });
+
+        modelBuilder.Entity<RondiTrack.Domain.Models.RefreshToken>(entity =>
+        {
+            entity.HasKey(token => token.Id);
+            entity.Property(token => token.Id).ValueGeneratedNever();
+            entity.Property(token => token.TokenHash).IsRequired().HasMaxLength(64);
+            entity.HasIndex(token => token.TokenHash).IsUnique();
+            entity.HasIndex(token => token.FamilyId);
+            entity.Property(token => token.Version).IsRowVersion();
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(token => token.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Stokvel uses its application-generated Guid as its primary key.

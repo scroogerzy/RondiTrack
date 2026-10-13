@@ -13,6 +13,12 @@ public class User
 
     public string Email { get; private set; } = null!;
 
+    // Null is permitted only for legacy accounts created before Assignment 6.1.
+    public string? PasswordHash { get; private set; }
+
+    // Platform-wide role only; stokvel roles remain on StokvelMember.
+    public string PlatformRole { get; private set; } = "User";
+
 // A User can participate in multiple stokvels.
 // StokvelMember stores the additional data about each membership.
 
@@ -41,13 +47,25 @@ public ICollection<StokvelMember> StokvelMemberships { get; private set; }
 
         Id = Guid.NewGuid();
         FullName = fullName;
-        Email = email;
+        Email = NormalizeEmail(email);
     }
 
     // EF Core uses this constructor when materializing
     // an existing User row from PostgreSQL.
     private User()
     {
+    }
+
+
+    public static string NormalizeEmail(string email) =>
+        email.Trim().ToLowerInvariant();
+
+    public void SetPasswordHash(string passwordHash)
+    {
+        if (string.IsNullOrWhiteSpace(passwordHash))
+            throw new ArgumentException("Password hash is required.", nameof(passwordHash));
+
+        PasswordHash = passwordHash;
     }
 
     // Updates must go through domain behaviour,
@@ -74,6 +92,6 @@ public ICollection<StokvelMember> StokvelMemberships { get; private set; }
                 "Email address is invalid.",
                 nameof(email));
 
-        Email = email;
+        Email = NormalizeEmail(email);
     }
 }

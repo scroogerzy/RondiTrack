@@ -1301,3 +1301,71 @@ The successful local test run used these environment overrides to work around th
 - Skipped: **0**
 
 The full test suite passed in the recorded run. Re-run the tests after subsequent code changes.
+
+
+# Assignment 6.1 — Authentication and Stokvel-Scoped Authorization
+
+## Authentication implementation
+
+The existing `User` entity is extended with `PasswordHash` and a platform-wide `PlatformRole`; no second user table or ASP.NET Core Identity stack is introduced. Registration and login are implemented in `API/Auth/AuthService.cs` and exposed by `API/Controllers/AuthController.cs`. Passwords use ASP.NET Core `PasswordHasher<User>`. Email addresses are trimmed and lower-cased before lookup and storage, and PostgreSQL enforces a unique email index. Registration requires a password of at least 12 characters through FluentValidation.
+
+The access token is a signed JWT with a 15-minute lifetime and the `sub`, `email`, `jti`, and platform-wide `role` claims. `ClockSkew` is 30 seconds: it tolerates small clock differences without the default five-minute grace period. A role claim can be stale for at most the short access-token lifetime; **stokvel membership and stokvel-specific roles are never claims** and are checked from `StokvelMembers` on every protected stokvel request.
+
+The signing key is not in `appsettings.json`. Configure it locally with user-secrets:
+
+```bash
+dotnet user-secrets set "Jwt:SigningKey" "REPLACE_WITH_A_RANDOM_SECRET_AT_LEAST_32_BYTES_LONG" --project API/API.csproj
+```
+
+Use a randomly generated secret, never the example text above. The application fails at startup if the key is missing or shorter than 32 bytes. Tests override the key with a test-only value in `PostgresApiFactory`; that value is not used by production.
+
+## Refresh-token handling and browser storage
+
+Refresh tokens contain 64 random bytes and are stored only as SHA-256 hashes in PostgreSQL. Each token can be used once. A successful refresh spends the old token and saves its successor in one `SaveChangesAsync` operation. Reuse of a revoked token immediately revokes all still-active tokens in that login family and returns 401; the legitimate user must sign in again because the server cannot distinguish the user from a thief holding a copy. Logout revokes the family and returns 204 even if the cookie is already absent.
+
+The raw refresh token is sent only as an `HttpOnly` cookie, never in the response body. `Secure` restricts it to HTTPS; `SameSite=Strict` limits cross-site cookie sending; `Path=/api/auth` prevents it accompanying ordinary API requests; `HttpOnly` prevents JavaScript from reading it. The frontend should keep the short-lived access token in memory. Putting either token in `localStorage` exposes it to JavaScript and therefore to an XSS compromise.
+
+Successful authentication logs deliberately omit email addresses, passwords, access tokens, refresh tokens and cookie values. Example event lines from the current logging statements are:
+
+```text
+info: RondiTrack.Auth.AuthService[0]
+      Authentication login succeeded.
+info: RondiTrack.Auth.AuthService[0]
+      Authentication refresh succeeded.
+```
+
+These are examples of the expected event format, not captured test-run output.
+
+## Authorization and status codes
+
+The fallback authorization policy requires authentication unless an endpoint explicitly uses `[AllowAnonymous]`. OpenAPI and Scalar endpoints are explicitly anonymous in Development. Empty 401 and 403 responses are written as `application/problem+json`.
+
+`StokvelAuthorizeAttribute` invokes named resource policies. `StokvelAccessHandler` loads the caller's `StokvelMember` record for the route's stokvel ID. A missing membership throws the existing `NotFoundException`, producing 404; a member without the required role does not satisfy the policy and receives 403. This avoids confirming the existence of a stokvel to non-members while still distinguishing insufficient permissions for members. The plain `[Authorize(Roles = "PlatformAdmin")]` check is used once, on the platform-wide stokvel listing. Platform administration is a separate `User.PlatformRole`, which defaults to `User`; public registration cannot assign administrator privileges. A trusted operator must promote an account administratively. Per-stokvel `Member`, `Treasurer`, and `Chairperson` roles remain in `StokvelMember`. **Role-based versus policy-based:** the collection endpoint uses a single platform role check, so changing the allowed platform role changes that one attribute. Stokvel endpoints use named policies and a resource handler; changing which stokvel roles can open cycles requires changing the policy handler once, not editing every controller action.
+
+| Endpoint | Non-member | Member | Treasurer / Chairperson | Platform admin (platform listing) |
+|---|---:|---:|---:|---:|
+| `GET /api/stokvels` | 403 | 403 | 403 | 200 |
+| `GET /api/stokvels/{id}` | 404 | 200 | 200 | 404 unless also a member |
+| `GET /api/stokvels/{id}/members` | 404 | 200 | 200 | 404 unless also a member |
+| `POST /api/stokvels/{id}/members/{userId}` | 404 | 403 | 204 | 404 unless also a member with the required stokvel role |
+| `GET /api/stokvels/{id}/cycles` | 404 | 200 | 200 | 404 unless also a member |
+| `GET /api/stokvels/{id}/cycles/{cycleId}/contributions` | 404 | 200 | 200 | 404 unless also a member |
+| `POST /api/stokvels/{id}/cycles` | 404 | 403 | 201 | 404 unless also a member with the required stokvel role |
+| `POST /api/stokvels/{id}/cycles/{cycleId}/payout` | 404 | 403 | 200 | 404 unless also a member with the required stokvel role |
+| `POST /api/stokvels/{id}/members/{userId}/contributions` (own contribution) | 404 | 201 | 201 | 404 unless a member |
+| `POST /api/stokvels/{id}/members/{otherUserId}/contributions` | 404 | 403 | 201 | 404 unless a member |
+
+The status codes above describe the authorization decision; request validation and domain conflicts can still return their normal 400/409 responses. The payout endpoint records the processing timestamp on the cycle; it does not initiate a real bank transfer because this project has no payment-provider integration.
+
+## Verification status
+
+- Verification date: 12 October 2026
+- Command: `TESTCONTAINERS_RYUK_DISABLED=true dotnet test RondiTrack.sln --no-restore`
+- Total tests: **34**
+- Passed: **34**
+- Failed: **0**
+- Skipped: **0**
+- Build result: **Succeeded**
+- Reported build duration: 591.0 seconds
+
+The full test suite passed in the recorded local run. The Ryuk cleanup helper was disabled to work around the local Testcontainers startup issue; the test fixture completed and disposed of its PostgreSQL container. Re-run the suite after subsequent code changes. The environment override is a local test workaround, not a production configuration requirement.

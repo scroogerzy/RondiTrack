@@ -31,6 +31,12 @@ public class InMemoryUserRepository : IUserRepository
         return Task.FromResult<IEnumerable<User>>(_users);
     }
 
+    public Task<User?> GetByEmailAsync(string email)
+    {
+        var normalized = User.NormalizeEmail(email);
+        return Task.FromResult(_users.FirstOrDefault(user => user.Email == normalized));
+    }
+
     public Task<User?> GetByIdAsync(Guid id)
     {
         var user = _users.FirstOrDefault(u => u.Id == id);
@@ -55,6 +61,8 @@ public class InMemoryUserRepository : IUserRepository
         // The entity itself controls valid property changes.
         existingUser.UpdateFullName(user.FullName);
         existingUser.UpdateEmail(user.Email);
+        if (user.PasswordHash is not null)
+            existingUser.SetPasswordHash(user.PasswordHash);
 
         return Task.FromResult(true);
     }

@@ -7,4 +7,5 @@ public record ContributionCycleResponse(
     DateTime StartDate,
     DateTime EndDate,
     decimal TargetAmount,
-    uint Version);
+    uint Version,
+    DateTime? PayoutProcessedAtUtc);
