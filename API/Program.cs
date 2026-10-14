@@ -1,7 +1,3 @@
-using OpenTelemetry.Resources;
-using OpenTelemetry;
-using OpenTelemetry.Metrics;
-using OpenTelemetry.Trace;
 
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -18,9 +14,16 @@ using RondiTrack.Auth;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using Microsoft.IdentityModel.JsonWebTokens;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
+using System.Security.Claims;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using RondiTrack.Common;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -68,6 +71,51 @@ builder.Services.AddScoped<AuthService>();
 builder.Services.AddControllers(options =>
 {
     options.SuppressAsyncSuffixInActionNames = false;
+})
+.AddJsonOptions(options =>
+{
+    options.JsonSerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+})
+.ConfigureApiBehaviorOptions(options =>
+{
+    options.SuppressModelStateInvalidFilter = false;
+      options.AllowInputFormatterExceptionMessages = false;
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var errors = context.ModelState
+            .Where(entry => entry.Value?.Errors.Count > 0)
+            .ToDictionary(
+                entry => JsonNamingPolicy.CamelCase.ConvertName(entry.Key),
+                entry => entry.Value!.Errors
+                    .Select(error => string.IsNullOrWhiteSpace(error.ErrorMessage)
+                        ? "The supplied value is invalid."
+                        : error.ErrorMessage)
+                    .ToArray());
+
+        var problem = new ValidationProblemDetails(errors)
+        {
+            Type = "https://api.ronditrack.co.za/errors/validation",
+            Title = "One or more validation errors occurred.",
+            Status = StatusCodes.Status400BadRequest,
+            Detail = "Correct the supplied fields and try again.",
+            Instance = context.HttpContext.Request.Path
+        };
+        problem.Extensions["correlationId"] =
+            context.HttpContext.Items["X-Correlation-ID"]?.ToString()
+            ?? context.HttpContext.TraceIdentifier;
+
+        return new BadRequestObjectResult(problem)
+        {
+            ContentTypes = { "application/problem+json" }
+        };
+    };
+});
+
+// Also configure minimal-API/HTTP JSON options so OpenAPI and runtime
+// use the same strict numeric contract.
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
 });
 
 // Register automatic request validation.
@@ -111,35 +159,96 @@ builder.Services.AddSingleton<
 // Register the business service.
 builder.Services.AddScoped<IStokvelService, StokvelService>();
 
-
-// Assignment 6.2: OpenTelemetry traces, metrics and logs.
-builder.Services.AddSingleton<RondiTrackMetrics>();
-
-var telemetry = builder.Services.AddOpenTelemetry()
-    .ConfigureResource(resource => resource.AddService("ronditrack-api"))
-    .WithTracing(tracing => tracing
-        .AddAspNetCoreInstrumentation(options =>
-            options.Filter = context =>
-                !context.Request.Path.StartsWithSegments("/health"))
-        .AddSource("Npgsql")
-        .AddSource(RondiTrack.Services.RondiTrackActivity.Source.Name))
-    .WithMetrics(metrics => metrics
-        .AddAspNetCoreInstrumentation()
-        .AddMeter("System.Runtime")
-        .AddMeter(RondiTrackMetrics.MeterName))
-    .WithLogging();
-
-if (!string.IsNullOrWhiteSpace(
-        builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+// Exact-origin CORS: credentials cannot be combined with a wildcard origin.
+var allowedOrigins = builder.Configuration
+    .GetSection("Cors:AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+builder.Services.AddCors(options =>
 {
-    telemetry.UseOtlpExporter();
-}
+    options.AddPolicy(CorsPolicies.Frontend, policy =>
+    {
+        if (allowedOrigins.Length > 0)
+            policy.WithOrigins(allowedOrigins);
+        policy.WithMethods("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS");
+        policy.WithHeaders("Authorization", "Content-Type", "Idempotency-Key", "X-Correlation-ID");
+        policy.WithExposedHeaders("Retry-After", "X-Correlation-ID", "Idempotency-Replayed");
+        policy.AllowCredentials().SetPreflightMaxAge(TimeSpan.FromMinutes(10));
+    });
+});
 
-// PostgreSQL readiness check; liveness does not depend on the database.
-builder.Services.AddHealthChecks()
-    .AddDbContextCheck<RondiTrackDbContext>(
-        name: "postgres",
-        tags: new[] { "ready" });
+// Login is partitioned by client IP. Financial writes are partitioned by
+// authenticated subject, so users sharing venue Wi-Fi do not share money limits.
+var loginPermitLimit = builder.Configuration.GetValue("RateLimiting:Login:PermitLimit", 5);
+var loginWindowSeconds = builder.Configuration.GetValue("RateLimiting:Login:WindowSeconds", 60);
+var contributionPermitLimit = builder.Configuration.GetValue("RateLimiting:Contributions:PermitLimit", 25);
+var contributionWindowSeconds = builder.Configuration.GetValue("RateLimiting:Contributions:WindowSeconds", 60);
+var payoutPermitLimit = builder.Configuration.GetValue("RateLimiting:Payouts:PermitLimit", 5);
+var payoutWindowSeconds = builder.Configuration.GetValue("RateLimiting:Payouts:WindowSeconds", 60);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+    options.OnRejected = async (context, cancellationToken) =>
+    {
+        var response = context.HttpContext.Response;
+        response.StatusCode = StatusCodes.Status429TooManyRequests;
+        response.ContentType = "application/problem+json";
+        var retryAfterSeconds = context.Lease.TryGetMetadata(
+            MetadataName.RetryAfter, out var retryAfter)
+            ? Math.Max(1, (int)Math.Ceiling(retryAfter.TotalSeconds))
+            : 1;
+        response.Headers["Retry-After"] = retryAfterSeconds.ToString();
+
+        var correlationId = context.HttpContext.Items["X-Correlation-ID"]?.ToString()
+            ?? context.HttpContext.TraceIdentifier;
+        var problem = new Microsoft.AspNetCore.Mvc.ProblemDetails
+        {
+            Type = "https://api.ronditrack.co.za/errors/rate-limit",
+            Title = "Too Many Requests",
+            Status = StatusCodes.Status429TooManyRequests,
+            Detail = "The request limit has been reached. Wait before retrying.",
+            Instance = context.HttpContext.Request.Path
+        };
+        problem.Extensions["correlationId"] = correlationId;
+        await JsonSerializer.SerializeAsync(response.Body, problem, cancellationToken: cancellationToken);
+    };
+
+    options.AddPolicy(RateLimitPolicies.Login, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, loginPermitLimit),
+                Window = TimeSpan.FromSeconds(Math.Max(1, loginWindowSeconds)),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(RateLimitPolicies.Contributions, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, contributionPermitLimit),
+                Window = TimeSpan.FromSeconds(Math.Max(1, contributionWindowSeconds)),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
+    options.AddPolicy(RateLimitPolicies.Payouts, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? httpContext.User.FindFirstValue(ClaimTypes.NameIdentifier)
+                ?? "anonymous",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = Math.Max(1, payoutPermitLimit),
+                Window = TimeSpan.FromSeconds(Math.Max(1, payoutWindowSeconds)),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+});
 
 var app = builder.Build();
 
@@ -193,22 +302,6 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
-
-// Liveness checks the process only. Readiness checks PostgreSQL.
-app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    Predicate = _ => false,
-    ResponseWriter = async (context, report) =>
-        await context.Response.WriteAsync(report.Status.ToString())
-}).AllowAnonymous();
-
-app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
-{
-    Predicate = check => check.Tags.Contains("ready"),
-    ResponseWriter = async (context, report) =>
-        await context.Response.WriteAsync(report.Status.ToString())
-}).AllowAnonymous();
-
 // Expose documentation endpoints in Development only.
 if (app.Environment.IsDevelopment())
 {
@@ -217,6 +310,8 @@ if (app.Environment.IsDevelopment())
 }
 
 // Register middleware in the existing request pipeline.
+app.UseRouting();
+app.UseCors(CorsPolicies.Frontend);
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionHandlingMiddleware>();
 
@@ -230,8 +325,11 @@ app.UseStatusCodePages(async context =>
     var status = response.StatusCode;
     var title = status switch
     {
+        StatusCodes.Status400BadRequest => "Bad Request",
         StatusCodes.Status401Unauthorized => "Unauthorized",
         StatusCodes.Status403Forbidden => "Forbidden",
+        StatusCodes.Status404NotFound => "Not Found",
+        StatusCodes.Status405MethodNotAllowed => "Method Not Allowed",
         _ => "Request failed"
     };
 
@@ -240,14 +338,19 @@ app.UseStatusCodePages(async context =>
         Type = $"https://api.ronditrack.co.za/errors/{status}",
         Title = title,
         Status = status,
-        Detail = status == StatusCodes.Status401Unauthorized
-            ? "Authentication is required or the supplied credentials are invalid."
-            : "You do not have permission to perform this operation.",
+        Detail = status switch
+        {
+            StatusCodes.Status400BadRequest => "The request could not be processed.",
+            StatusCodes.Status401Unauthorized => "Authentication is required or the supplied credentials are invalid.",
+            StatusCodes.Status403Forbidden => "You do not have permission to perform this operation.",
+            StatusCodes.Status404NotFound => "The requested resource was not found.",
+            StatusCodes.Status405MethodNotAllowed => "The HTTP method is not supported for this resource.",
+            _ => "The request could not be completed."
+        },
         Instance = httpContext.Request.Path
     };
-
     problem.Extensions["correlationId"] =
-        System.Diagnostics.Activity.Current?.TraceId.ToString()
+        httpContext.Items["X-Correlation-ID"]?.ToString()
         ?? httpContext.TraceIdentifier;
 
     response.ContentType = "application/problem+json";
@@ -257,6 +360,7 @@ app.UseStatusCodePages(async context =>
         cancellationToken: httpContext.RequestAborted);
 });
 app.UseAuthentication();
+app.UseRateLimiter();
 app.UseAuthorization();
 
 app.MapControllers();

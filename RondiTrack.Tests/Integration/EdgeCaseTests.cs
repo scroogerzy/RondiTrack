@@ -33,7 +33,7 @@ public class EdgeCaseTests
     {
         // Request the list of stokvels from the API.
         var stokvelsResponse =
-            await _client.GetAsync("/api/stokvels");
+            await _client.GetAsync("/api/v1/stokvels");
 
         // The list endpoint should return HTTP 200 OK.
         Assert.Equal(
@@ -51,7 +51,7 @@ public class EdgeCaseTests
 
         // Request the list of users from the API.
         var usersResponse =
-            await _client.GetAsync("/api/users");
+            await _client.GetAsync("/api/v1/users");
 
         // The users endpoint should also return HTTP 200 OK.
         Assert.Equal(
@@ -79,7 +79,7 @@ public class EdgeCaseTests
         // Request the stokvel using the unknown ID.
         var response =
             await _client.GetAsync(
-                $"/api/stokvels/{unknownStokvelId}");
+                $"/api/v1/stokvels/{unknownStokvelId}");
 
         // The API should report that the stokvel was not found.
         Assert.Equal(
@@ -98,7 +98,7 @@ public class EdgeCaseTests
         // Request the user using the unknown ID.
         var response =
             await _client.GetAsync(
-                $"/api/users/{unknownUserId}");
+                $"/api/v1/users/{unknownUserId}");
 
         // The API should report that the user was not found.
         Assert.Equal(
@@ -118,7 +118,7 @@ public class EdgeCaseTests
         // Retrieve the existing stokvels needed for a potential
         // duplicate contribution test.
         var stokvelsResponse =
-            await _client.GetAsync("/api/stokvels");
+            await _client.GetAsync("/api/v1/stokvels");
 
         // Confirm that the API successfully returns the list.
         Assert.Equal(
@@ -152,7 +152,7 @@ public class EdgeCaseTests
         // Request contributions for the unknown stokvel/cycle combination.
         var response =
             await _client.GetAsync(
-                $"/api/stokvels/{unknownStokvelId}/cycles/{unknownCycleId}/contributions");
+                $"/api/v1/stokvels/{unknownStokvelId}/cycles/{unknownCycleId}/contributions");
 
         // The API should report that the requested resource was not found.
         Assert.Equal(

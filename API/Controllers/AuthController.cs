@@ -1,12 +1,14 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RondiTrack.Auth;
+using RondiTrack.Common;
 using RondiTrack.DTOs.Auth;
 
 namespace RondiTrack.Controllers;
 
 [ApiController]
-[Route("api/auth")]
+[Route(ApiRoutes.Auth)]
 [AllowAnonymous]
 public sealed class AuthController : ControllerBase
 {
@@ -25,6 +27,7 @@ public sealed class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting(RateLimitPolicies.Login)]
     public async Task<ActionResult<TokenResponse>> LoginAsync(LoginRequest request)
     {
         var result = await _authService.LoginAsync(request);
@@ -53,6 +56,6 @@ public sealed class AuthController : ControllerBase
 
     private static CookieOptions CookieOptionsFor(DateTime? expires) => new()
     {
-        HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Path = "/api/auth", Expires = expires
+        HttpOnly = true, Secure = true, SameSite = SameSiteMode.Strict, Path = "/" + ApiRoutes.Auth, Expires = expires
     };
 }

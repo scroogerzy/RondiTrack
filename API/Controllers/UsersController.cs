@@ -15,7 +15,7 @@ namespace RondiTrack.Controllers;
 [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
-[Route("api/[controller]")]
+[Route(ApiRoutes.Users)]
 public class UsersController : ControllerBase
 {
     private readonly IUserRepository _repository;

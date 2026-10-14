@@ -21,7 +21,7 @@ public sealed class ContributionPaginationTests
     public async Task Walking_pages_returns_each_contribution_once_then_an_empty_token()
     {
         var unique = Guid.NewGuid().ToString("N");
-        var stokvelResponse = await _client.PostAsJsonAsync("/api/stokvels", new
+        var stokvelResponse = await _client.PostAsJsonAsync("/api/v1/stokvels", new
         {
             name = $"Paging Stokvel {unique}",
             monthlyContribution = 500m
@@ -33,7 +33,7 @@ public sealed class ContributionPaginationTests
         var users = new List<UserResponse>();
         for (var memberIndex = 0; memberIndex < 2; memberIndex++)
         {
-            var userResponse = await _client.PostAsJsonAsync("/api/users", new
+            var userResponse = await _client.PostAsJsonAsync("/api/v1/users", new
             {
                 fullName = $"Paging User {unique} {memberIndex}",
                 email = $"paging-{unique}-{memberIndex}@example.test"
@@ -44,13 +44,13 @@ public sealed class ContributionPaginationTests
             users.Add(user);
 
             var memberResponse = await _client.PostAsync(
-                $"/api/stokvels/{stokvel.Id}/members/{user.Id}", null);
+                $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}", null);
             Assert.Equal(HttpStatusCode.NoContent, memberResponse.StatusCode);
         }
 
         var start = DateTime.UtcNow.Date;
         var cycleResponse = await _client.PostAsJsonAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles",
+            $"/api/v1/stokvels/{stokvel.Id}/cycles",
             new
             {
                 periodNumber = 1,
@@ -66,7 +66,7 @@ public sealed class ContributionPaginationTests
         {
             using var contributionRequest = new HttpRequestMessage(
                 HttpMethod.Post,
-                $"/api/stokvels/{stokvel.Id}/members/{user.Id}/contributions")
+                $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}/contributions")
             {
                 Content = JsonContent.Create(new { cycle = 1, amount = 500m })
             };
@@ -75,7 +75,7 @@ public sealed class ContributionPaginationTests
             Assert.Equal(HttpStatusCode.Created, recorded.StatusCode);
         }
 
-        var pageUrl = $"/api/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions" +
+        var pageUrl = $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions" +
             "?pageSize=1&sortBy=recordedAt&sortDirection=desc";
         var firstResponse = await _client.GetAsync(pageUrl);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
@@ -96,29 +96,29 @@ public sealed class ContributionPaginationTests
 
         // These inputs are part of the contract, not repository implementation details.
         var negative = await _client.GetAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions?pageSize=-1");
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions?pageSize=-1");
         Assert.Equal(HttpStatusCode.BadRequest, negative.StatusCode);
 
         var tooLarge = await _client.GetAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions?pageSize=101");
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions?pageSize=101");
         Assert.Equal(HttpStatusCode.OK, tooLarge.StatusCode);
         var clamped = await tooLarge.Content.ReadFromJsonAsync<ContributionPageResponse>();
         Assert.NotNull(clamped);
         Assert.Equal(100, clamped.PageSize);
 
         var wrongSort = await _client.GetAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions?pageSize=1&sortBy=amount");
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions?pageSize=1&sortBy=amount");
         Assert.Equal(HttpStatusCode.BadRequest, wrongSort.StatusCode);
 
         var changedSortToken = await _client.GetAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions" +
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions" +
             "?pageSize=1&sortBy=recordedAt&sortDirection=asc&pageToken=" +
             Uri.EscapeDataString(firstPage.NextPageToken));
         Assert.Equal(HttpStatusCode.BadRequest, changedSortToken.StatusCode);
 
         // Capture the default page size (20, therefore SQL LIMIT 21) in the real EF log.
         var defaultPageResponse = await _client.GetAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions" +
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions" +
             "?sortBy=recordedAt&sortDirection=desc");
         Assert.Equal(HttpStatusCode.OK, defaultPageResponse.StatusCode);
         var defaultPage = await defaultPageResponse.Content.ReadFromJsonAsync<ContributionPageResponse>();

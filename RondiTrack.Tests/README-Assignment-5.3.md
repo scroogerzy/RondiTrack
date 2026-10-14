@@ -8,13 +8,13 @@
 
 ### Endpoints paged in PostgreSQL
 
-- `GET /api/stokvels/{stokvelId}/cycles` uses keyset pagination, the cycle repository query, deterministic `(PeriodNumber, Id)` ordering, and `Take(pageSize + 1)` before materialization.
-- `GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions` uses keyset pagination in `EfContributionRepository.GetPageByCycleAsync`. `StokvelId` and `Cycle` equality filters, optional `UserId`, cursor predicate, ordering by `RecordedAt` plus unique `Id` tiebreaker, and `Take(pageSize + 1)` are built on `IQueryable` before `ToListAsync()`.
-- `GET /api/stokvels/{stokvelId}/members` obtains matching membership rows from `IStokvelMemberRepository`; it isn't paged in this assignment.
+- `GET /api/v1/stokvels/{stokvelId}/cycles` uses keyset pagination, the cycle repository query, deterministic `(PeriodNumber, Id)` ordering, and `Take(pageSize + 1)` before materialization.
+- `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions` uses keyset pagination in `EfContributionRepository.GetPageByCycleAsync`. `StokvelId` and `Cycle` equality filters, optional `UserId`, cursor predicate, ordering by `RecordedAt` plus unique `Id` tiebreaker, and `Take(pageSize + 1)` are built on `IQueryable` before `ToListAsync()`.
+- `GET /api/v1/stokvels/{stokvelId}/members` obtains matching membership rows from `IStokvelMemberRepository`; it isn't paged in this assignment.
 
 ### Remaining list endpoints / materialization decisions
 
-- `GET /api/users` and `GET /api/stokvels` still return their full lists. They do not apply a post-materialization filter or sort; pagination on these endpoints is explicitly not claimed for 5.3.
+- `GET /api/v1/users` and `GET /api/v1/stokvels` still return their full lists. They do not apply a post-materialization filter or sort; pagination on these endpoints is explicitly not claimed for 5.3.
 - `IContributionRepository.GetByStokvelAsync` is a legacy unpaged query. Its stokvel `Where` is part of the EF query, but the method returns all matching contributions and materializes them. The paged cycle endpoint does not call this method.
 - Mapping returned rows into response DTOs after materialization is accepted; filtering, cursor comparison, sorting and limiting the selected contribution/cycle rows must happen before `ToListAsync()`.
 - Any remaining in-memory repository filtering is confined to the in-memory implementation used by unit tests; PostgreSQL-backed API registrations use EF repositories.
@@ -25,7 +25,7 @@ The integration tests `ContributionPaginationTests.Walking_pages_returns_each_co
 
 ### Contributions
 
-- Route: `GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions`.
+- Route: `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions`.
 - Default page size: `20`; server maximum: `100`. A larger value is clamped, `0` uses the default, and a negative value returns `400` Problem Details.
 - Query allow-list: `pageSize`, `pageToken`, `sortBy`, `sortDirection`, `userId`. Unknown parameters, malformed tokens, unsupported sort fields, and a token reused with a different cycle/filter/sort return `400` Problem Details.
 - Sort allow-list: `recordedAt`, in `asc` or `desc` direction. `Id` is the deterministic unique tiebreaker and is carried in the keyset cursor.
@@ -38,7 +38,7 @@ The token is base64url-encoded serialized state and the API contract tells clien
 
 ### Contribution cycles
 
-- The second paged list is `GET /api/stokvels/{stokvelId}/cycles`.
+- The second paged list is `GET /api/v1/stokvels/{stokvelId}/cycles`.
 - Default page size: `20`; maximum: `100`; too-large values are clamped, negative sizes return `400`.
 - Sort allow-list: `periodNumber` with deterministic `Id` tiebreaker. Unsupported parameters/sorts and malformed/reused-with-different-query tokens return `400` Problem Details.
 - It uses keyset paging so inserts before the cursor do not shift the continuation window. `nextPageToken` is empty when no more results exist; no total count is returned.
@@ -121,12 +121,12 @@ An absent/zero update version is rejected with `400`; a version that does not ma
 
 | Area / endpoint | Paged and filtered in database | Database constraint | Concurrency protected |
 |---|---|---|---|
-| `GET /api/stokvels/{id}/cycles` | Yes — keyset query, ordering and limit in EF query | Yes — cycle/stokvel alternate key (pre-existing) | Yes — cycle `xmin` token |
-| `GET /api/stokvels/{id}/cycles/{cycleId}/contributions` | Yes — filter/cursor/order/limit before materialization | Yes — unique `(StokvelId, UserId, Cycle)` index | N/A — contributions are immutable |
-| `GET /api/stokvels/{id}/members` | No — unpaged list remains a documented gap | N/A for list itself; membership composite PK is excluded from the 5.3 uniqueness count | N/A — no membership update route |
-| `GET /api/users` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `User` mutations are protected by `xmin` |
-| `GET /api/stokvels` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `Stokvel` mutations are protected by `xmin` |
-| `GET/PUT /api/users/{id}` | N/A — single-item route | N/A — no pre-existing composite uniqueness rule for User | Yes — response/update token round-trip |
-| `GET/PUT /api/stokvels/{id}` | N/A — single-item route | N/A — no additional composite uniqueness rule | Yes — response/update token round-trip |
-| `GET/PUT /api/stokvels/{id}/cycles/{cycleId}` | N/A — single-item route | Yes — cycle/stokvel alternate key | Yes — response/update token round-trip |
+| `GET /api/v1/stokvels/{id}/cycles` | Yes — keyset query, ordering and limit in EF query | Yes — cycle/stokvel alternate key (pre-existing) | Yes — cycle `xmin` token |
+| `GET /api/v1/stokvels/{id}/cycles/{cycleId}/contributions` | Yes — filter/cursor/order/limit before materialization | Yes — unique `(StokvelId, UserId, Cycle)` index | N/A — contributions are immutable |
+| `GET /api/v1/stokvels/{id}/members` | No — unpaged list remains a documented gap | N/A for list itself; membership composite PK is excluded from the 5.3 uniqueness count | N/A — no membership update route |
+| `GET /api/v1/users` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `User` mutations are protected by `xmin` |
+| `GET /api/v1/stokvels` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `Stokvel` mutations are protected by `xmin` |
+| `GET/PUT /api/v1/users/{id}` | N/A — single-item route | N/A — no pre-existing composite uniqueness rule for User | Yes — response/update token round-trip |
+| `GET/PUT /api/v1/stokvels/{id}` | N/A — single-item route | N/A — no additional composite uniqueness rule | Yes — response/update token round-trip |
+| `GET/PUT /api/v1/stokvels/{id}/cycles/{cycleId}` | N/A — single-item route | Yes — cycle/stokvel alternate key | Yes — response/update token round-trip |
 | Payout endpoints | N/A — no endpoint/entity exists | N/A — no Payout model/rule in the supplied project | N/A — source-model gap documented above |

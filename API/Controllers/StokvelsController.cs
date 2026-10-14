@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using RondiTrack.Auth;
+using RondiTrack.Common;
 
 using Microsoft.AspNetCore.Mvc;
-using RondiTrack.Common;
+using Microsoft.AspNetCore.RateLimiting;
 using RondiTrack.Domain.Repositories;
 using RondiTrack.Infrastructure.Data;
 using RondiTrack.API.Data;
@@ -21,14 +22,13 @@ namespace RondiTrack.Controllers;
 [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
-[Route("api/[controller]")]
+[Route(ApiRoutes.Stokvels)]
 public class StokvelsController : ControllerBase
 {
     private readonly IStokvelRepository _stokvelRepository;
     private readonly IUserRepository _userRepository;
     private readonly IStokvelService _stokvelService;
     private readonly IStokvelMemberRepository _stokvelMemberRepository;
-    private readonly RondiTrackMetrics _metrics;
 
     /// <summary>
     /// Receives the repositories and service required by the endpoints.
@@ -37,14 +37,12 @@ public class StokvelsController : ControllerBase
         IStokvelRepository stokvelRepository,
         IUserRepository userRepository,
         IStokvelService stokvelService,
-        IStokvelMemberRepository stokvelMemberRepository,
-        RondiTrackMetrics metrics)
+        IStokvelMemberRepository stokvelMemberRepository)
     {
         _stokvelRepository = stokvelRepository;
         _userRepository = userRepository;
         _stokvelService = stokvelService;
         _stokvelMemberRepository = stokvelMemberRepository;
-        _metrics = metrics;
     }
 
     /// <summary>
@@ -310,6 +308,7 @@ public class StokvelsController : ControllerBase
     /// </summary>
     [StokvelAuthorize(Policies.RecordContribution)]
     [HttpPost("{stokvelId:guid}/members/{userId:guid}/contributions")]
+    [EnableRateLimiting(RateLimitPolicies.Contributions)]
     public async Task<ActionResult<ContributionResponse>>
         RecordContributionAsync(
             Guid stokvelId,
@@ -330,10 +329,15 @@ public class StokvelsController : ControllerBase
             idempotencyKey,
             request);
 
+        Response.Headers["Idempotency-Replayed"] =
+            result is RecordContributionResult.ReplayedFromCache ? "true" : "false";
+
         return result switch
         {
             RecordContributionResult.Recorded recorded =>
-                RecordContributionResponse(recorded.Contribution),
+                StatusCode(
+                    StatusCodes.Status201Created,
+                    recorded.Contribution),
 
             RecordContributionResult.ReplayedFromCache replayed =>
                 StatusCode(
@@ -380,12 +384,5 @@ public class StokvelsController : ControllerBase
                     "The contribution could not be recorded.",
                     HttpContext.Request.Path)
         };
-    }
-
-    private ActionResult<ContributionResponse> RecordContributionResponse(
-        ContributionResponse contribution)
-    {
-        _metrics.ContributionRecorded();
-        return StatusCode(StatusCodes.Status201Created, contribution);
     }
 }

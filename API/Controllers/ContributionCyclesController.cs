@@ -1,8 +1,7 @@
-using RondiTrack.Services;
-using System.Diagnostics;
 using RondiTrack.Auth;
-using Microsoft.AspNetCore.Mvc;
 using RondiTrack.Common;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RondiTrack.Domain.Repositories;
 using RondiTrack.Infrastructure.Data;
 using RondiTrack.API.Data;
@@ -15,7 +14,7 @@ namespace RondiTrack.Controllers;
 
 /// Manages contribution cycles for stokvels.
 [ApiController]
-[Route("api/stokvels/{stokvelId:guid}/cycles")]
+[Route(ApiRoutes.Stokvels + "/{stokvelId:guid}/cycles")]
 public class ContributionCyclesController : ControllerBase
 {
     private readonly IContributionCycleRepository
@@ -26,18 +25,15 @@ public class ContributionCyclesController : ControllerBase
 
     private readonly IContributionRepository
         _contributionRepository;
-    private readonly RondiTrackMetrics _metrics;
 
     public ContributionCyclesController(
         IContributionCycleRepository cycleRepository,
         IStokvelRepository stokvelRepository,
-        IContributionRepository contributionRepository,
-        RondiTrackMetrics metrics)
+        IContributionRepository contributionRepository)
     {
         _cycleRepository = cycleRepository;
         _stokvelRepository = stokvelRepository;
         _contributionRepository = contributionRepository;
-        _metrics = metrics;
     }
 
     /// Returns contribution cycles in deterministic, keyset-paginated order.
@@ -405,38 +401,18 @@ public class ContributionCyclesController : ControllerBase
     /// <summary>Records that the payout for a contribution cycle has been processed.</summary>
     [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPost("{cycleId:guid}/payout")]
+    [EnableRateLimiting(RateLimitPolicies.Payouts)]
     public async Task<IActionResult> ProcessPayout(Guid stokvelId, Guid cycleId)
     {
-        using var activity = RondiTrackActivity.Source.StartActivity("payout.process");
-        activity?.SetTag("payout.operation", "process");
+        var cycle = await _cycleRepository.GetByIdAsync(cycleId);
+        if (cycle is null || cycle.StokvelId != stokvelId)
+            return ProblemResponses.NotFound(
+                $"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.",
+                HttpContext.Request.Path);
 
-        try
-        {
-            var cycle = await _cycleRepository.GetByIdAsync(cycleId);
-            if (cycle is null || cycle.StokvelId != stokvelId)
-            {
-                activity?.SetTag("payout.outcome", "not_found");
-                _metrics.AuthorizationRefused("not_found");
-                _metrics.PayoutProcessed("not_found");
-                return ProblemResponses.NotFound(
-                    "Contribution cycle was not found.",
-                    HttpContext.Request.Path);
-            }
-
-            cycle.ProcessPayout(DateTime.UtcNow);
-            await _cycleRepository.UpdateAsync(cycle);
-
-            activity?.SetTag("payout.outcome", "success");
-            _metrics.PayoutProcessed("success");
-            return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
-        }
-        catch (Exception)
-        {
-            activity?.SetTag("payout.outcome", "failure");
-            activity?.SetStatus(ActivityStatusCode.Error);
-            _metrics.PayoutProcessed("failure");
-            throw;
-        }
+        cycle.ProcessPayout(DateTime.UtcNow);
+        await _cycleRepository.UpdateAsync(cycle);
+        return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
     }
 
 }

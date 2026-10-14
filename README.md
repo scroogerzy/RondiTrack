@@ -415,7 +415,7 @@ The migration was then applied to PostgreSQL.
 Assignment 5.2 deliberately introduced the following endpoint:
 
 ```text
-GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions
+GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions
 ```
 
 The purpose was to demonstrate the N+1 query problem.
@@ -878,7 +878,7 @@ dotnet ef database update
 The relationship query endpoint is:
 
 ```text
-GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions
+GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions
 ```
 
 The query implementation supports the investigation of:
@@ -941,8 +941,8 @@ The resulting design provides a clearer persistence boundary, explicit relations
 
 The paged list endpoints selected for this assignment are:
 
-- `GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions`
-- `GET /api/stokvels/{stokvelId}/cycles`
+- `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions`
+- `GET /api/v1/stokvels/{stokvelId}/cycles`
 
 Both use keyset pagination rather than exposing an offset. The default page size is 20 and the server maximum is 100. A negative page size returns a 400 Problem Details response; a page size above 100 is reduced to 100. The response contains `items`, `nextPageToken`, and `pageSize`; `nextPageToken` is empty when the query has no more results. The API does not return a total count because obtaining a count can add work to a list query and clients can continue until the token is empty.
 
@@ -956,11 +956,11 @@ The contribution-list endpoint uses the existing model relationship: `Contributi
 
 | Existing endpoint or repository method | Current behaviour | Assignment 5.3 decision |
 |---|---|---|
-| `GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions` | New paged EF repository query filters by `StokvelId` and `Cycle`, optionally filters by `UserId`, applies keyset conditions, orders in SQL, and takes `pageSize + 1`. | Selected paged endpoint. Real SQL logging still needs to be captured. |
-| `GET /api/stokvels/{stokvelId}/cycles` | New EF repository query filters by `StokvelId`, applies a keyset condition and deterministic ordering, then takes `pageSize + 1`. | Selected second paged endpoint. Real SQL logging still needs to be captured. |
-| `GET /api/users` / `EfUserRepository.GetAllAsync` | Reads all users with `AsNoTracking().ToListAsync()` and does not filter or sort in memory. It remains unpaged. | Left unchanged for this assignment's selected endpoint scope; report as an unpaged list endpoint/gap rather than claim it is paginated. |
-| `GET /api/stokvels` / `InMemoryStokvelRepository.GetAllAsync` | Uses the in-memory repository rather than a database query. | Left unchanged; SQL-side paging cannot be demonstrated while this endpoint uses in-memory persistence. |
-| `GET /api/stokvels/{stokvelId}/members` | Builds the result from `Stokvel.MemberIds` and looks up each user individually. | Left unchanged in this first pass; its in-memory/N+1 behaviour remains an item to assess in the full audit. |
+| `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions` | New paged EF repository query filters by `StokvelId` and `Cycle`, optionally filters by `UserId`, applies keyset conditions, orders in SQL, and takes `pageSize + 1`. | Selected paged endpoint. Real SQL logging still needs to be captured. |
+| `GET /api/v1/stokvels/{stokvelId}/cycles` | New EF repository query filters by `StokvelId`, applies a keyset condition and deterministic ordering, then takes `pageSize + 1`. | Selected second paged endpoint. Real SQL logging still needs to be captured. |
+| `GET /api/v1/users` / `EfUserRepository.GetAllAsync` | Reads all users with `AsNoTracking().ToListAsync()` and does not filter or sort in memory. It remains unpaged. | Left unchanged for this assignment's selected endpoint scope; report as an unpaged list endpoint/gap rather than claim it is paginated. |
+| `GET /api/v1/stokvels` / `InMemoryStokvelRepository.GetAllAsync` | Uses the in-memory repository rather than a database query. | Left unchanged; SQL-side paging cannot be demonstrated while this endpoint uses in-memory persistence. |
+| `GET /api/v1/stokvels/{stokvelId}/members` | Builds the result from `Stokvel.MemberIds` and looks up each user individually. | Left unchanged in this first pass; its in-memory/N+1 behaviour remains an item to assess in the full audit. |
 | `EfContributionRepository.GetByStokvelAsync` | Filters by stokvel before `ToListAsync()`, but returns every matching contribution. The current controller does not use this method for the new paged route. | Legacy repository method remains unpaged; it must be included in the final audit and either removed if unused or documented. |
 | `EfContributionCycleRepository.GetByStokvelAsync` | Filters by stokvel before `ToListAsync()`, but returns every matching cycle. | The cycles endpoint now uses `GetPageByStokvelAsync`; this legacy method remains unpaged and should be removed if confirmed unused. |
 | `EfStokvelMemberRepository.GetByStokvelIdAsync` | Filters by stokvel in EF before `ToListAsync()`, but returns every matching membership. | No paged endpoint currently calls it; retain it for the existing repository contract and document its unpaged status. |
@@ -996,13 +996,13 @@ This section is intentionally not marked complete yet. The remaining work is to:
 
 ### Endpoints paged in PostgreSQL
 
-- `GET /api/stokvels/{stokvelId}/cycles` uses keyset pagination, the cycle repository query, deterministic `(PeriodNumber, Id)` ordering, and `Take(pageSize + 1)` before materialization.
-- `GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions` uses keyset pagination in `EfContributionRepository.GetPageByCycleAsync`. `StokvelId` and `Cycle` equality filters, optional `UserId`, cursor predicate, ordering by `RecordedAt` plus unique `Id` tiebreaker, and `Take(pageSize + 1)` are built on `IQueryable` before `ToListAsync()`.
-- `GET /api/stokvels/{stokvelId}/members` obtains matching membership rows from `IStokvelMemberRepository`; it isn't paged in this assignment.
+- `GET /api/v1/stokvels/{stokvelId}/cycles` uses keyset pagination, the cycle repository query, deterministic `(PeriodNumber, Id)` ordering, and `Take(pageSize + 1)` before materialization.
+- `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions` uses keyset pagination in `EfContributionRepository.GetPageByCycleAsync`. `StokvelId` and `Cycle` equality filters, optional `UserId`, cursor predicate, ordering by `RecordedAt` plus unique `Id` tiebreaker, and `Take(pageSize + 1)` are built on `IQueryable` before `ToListAsync()`.
+- `GET /api/v1/stokvels/{stokvelId}/members` obtains matching membership rows from `IStokvelMemberRepository`; it isn't paged in this assignment.
 
 ### Remaining list endpoints / materialization decisions
 
-- `GET /api/users` and `GET /api/stokvels` still return their full lists. They do not apply a post-materialization filter or sort; pagination on these endpoints is explicitly not claimed for 5.3.
+- `GET /api/v1/users` and `GET /api/v1/stokvels` still return their full lists. They do not apply a post-materialization filter or sort; pagination on these endpoints is explicitly not claimed for 5.3.
 - `IContributionRepository.GetByStokvelAsync` is a legacy unpaged query. Its stokvel `Where` is part of the EF query, but the method returns all matching contributions and materializes them. The paged cycle endpoint does not call this method.
 - Mapping returned rows into response DTOs after materialization is accepted; filtering, cursor comparison, sorting and limiting the selected contribution/cycle rows must happen before `ToListAsync()`.
 - Any remaining in-memory repository filtering is confined to the in-memory implementation used by unit tests; PostgreSQL-backed API registrations use EF repositories.
@@ -1013,7 +1013,7 @@ The integration tests `ContributionPaginationTests.Walking_pages_returns_each_co
 
 ### Contributions
 
-- Route: `GET /api/stokvels/{stokvelId}/cycles/{cycleId}/contributions`.
+- Route: `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions`.
 - Default page size: `20`; server maximum: `100`. A larger value is clamped, `0` uses the default, and a negative value returns `400` Problem Details.
 - Query allow-list: `pageSize`, `pageToken`, `sortBy`, `sortDirection`, `userId`. Unknown parameters, malformed tokens, unsupported sort fields, and a token reused with a different cycle/filter/sort return `400` Problem Details.
 - Sort allow-list: `recordedAt`, in `asc` or `desc` direction. `Id` is the deterministic unique tiebreaker and is carried in the keyset cursor.
@@ -1026,7 +1026,7 @@ The token is base64url-encoded serialized state and the API contract tells clien
 
 ### Contribution cycles
 
-- The second paged list is `GET /api/stokvels/{stokvelId}/cycles`.
+- The second paged list is `GET /api/v1/stokvels/{stokvelId}/cycles`.
 - Default page size: `20`; maximum: `100`; too-large values are clamped, negative sizes return `400`.
 - Sort allow-list: `periodNumber` with deterministic `Id` tiebreaker. Unsupported parameters/sorts and malformed/reused-with-different-query tokens return `400` Problem Details.
 - It uses keyset paging so inserts before the cursor do not shift the continuation window. `nextPageToken` is empty when no more results exist; no total count is returned.
@@ -1200,14 +1200,14 @@ An absent/zero update version is rejected with `400`; a version that does not ma
 
 | Area / endpoint | Paged and filtered in database | Database constraint | Concurrency protected |
 |---|---|---|---|
-| `GET /api/stokvels/{id}/cycles` | Yes — keyset query, ordering and limit in EF query | Yes — cycle/stokvel alternate key (pre-existing) | Yes — cycle `xmin` token |
-| `GET /api/stokvels/{id}/cycles/{cycleId}/contributions` | Yes — filter/cursor/order/limit before materialization | Yes — unique `(StokvelId, UserId, Cycle)` index | N/A — contributions are immutable |
-| `GET /api/stokvels/{id}/members` | No — unpaged list remains a documented gap | N/A for list itself; membership composite PK is excluded from the 5.3 uniqueness count | N/A — no membership update route |
-| `GET /api/users` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `User` mutations are protected by `xmin` |
-| `GET /api/stokvels` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `Stokvel` mutations are protected by `xmin` |
-| `GET/PUT /api/users/{id}` | N/A — single-item route | N/A — no pre-existing composite uniqueness rule for User | Yes — response/update token round-trip |
-| `GET/PUT /api/stokvels/{id}` | N/A — single-item route | N/A — no additional composite uniqueness rule | Yes — response/update token round-trip |
-| `GET/PUT /api/stokvels/{id}/cycles/{cycleId}` | N/A — single-item route | Yes — cycle/stokvel alternate key | Yes — response/update token round-trip |
+| `GET /api/v1/stokvels/{id}/cycles` | Yes — keyset query, ordering and limit in EF query | Yes — cycle/stokvel alternate key (pre-existing) | Yes — cycle `xmin` token |
+| `GET /api/v1/stokvels/{id}/cycles/{cycleId}/contributions` | Yes — filter/cursor/order/limit before materialization | Yes — unique `(StokvelId, UserId, Cycle)` index | N/A — contributions are immutable |
+| `GET /api/v1/stokvels/{id}/members` | No — unpaged list remains a documented gap | N/A for list itself; membership composite PK is excluded from the 5.3 uniqueness count | N/A — no membership update route |
+| `GET /api/v1/users` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `User` mutations are protected by `xmin` |
+| `GET /api/v1/stokvels` | No — unpaged list remains as before | N/A for list itself | N/A — read endpoint; `Stokvel` mutations are protected by `xmin` |
+| `GET/PUT /api/v1/users/{id}` | N/A — single-item route | N/A — no pre-existing composite uniqueness rule for User | Yes — response/update token round-trip |
+| `GET/PUT /api/v1/stokvels/{id}` | N/A — single-item route | N/A — no additional composite uniqueness rule | Yes — response/update token round-trip |
+| `GET/PUT /api/v1/stokvels/{id}/cycles/{cycleId}` | N/A — single-item route | Yes — cycle/stokvel alternate key | Yes — response/update token round-trip |
 | Payout endpoints | N/A — no endpoint/entity exists | N/A — no Payout model/rule in the supplied project | N/A — source-model gap documented above |
 
 <!-- ASSIGNMENT_5_3_ADDENDUM_END -->
@@ -1323,7 +1323,7 @@ Use a randomly generated secret, never the example text above. The application f
 
 Refresh tokens contain 64 random bytes and are stored only as SHA-256 hashes in PostgreSQL. Each token can be used once. A successful refresh spends the old token and saves its successor in one `SaveChangesAsync` operation. Reuse of a revoked token immediately revokes all still-active tokens in that login family and returns 401; the legitimate user must sign in again because the server cannot distinguish the user from a thief holding a copy. Logout revokes the family and returns 204 even if the cookie is already absent.
 
-The raw refresh token is sent only as an `HttpOnly` cookie, never in the response body. `Secure` restricts it to HTTPS; `SameSite=Strict` limits cross-site cookie sending; `Path=/api/auth` prevents it accompanying ordinary API requests; `HttpOnly` prevents JavaScript from reading it. The frontend should keep the short-lived access token in memory. Putting either token in `localStorage` exposes it to JavaScript and therefore to an XSS compromise.
+The raw refresh token is sent only as an `HttpOnly` cookie, never in the response body. `Secure` restricts it to HTTPS; `SameSite=Strict` limits cross-site cookie sending; `Path=/api/v1/auth` prevents it accompanying ordinary API requests; `HttpOnly` prevents JavaScript from reading it. The frontend should keep the short-lived access token in memory. Putting either token in `localStorage` exposes it to JavaScript and therefore to an XSS compromise.
 
 Successful authentication logs deliberately omit email addresses, passwords, access tokens, refresh tokens and cookie values. Example event lines from the current logging statements are:
 
@@ -1344,16 +1344,16 @@ The fallback authorization policy requires authentication unless an endpoint exp
 
 | Endpoint | Non-member | Member | Treasurer / Chairperson | Platform admin (platform listing) |
 |---|---:|---:|---:|---:|
-| `GET /api/stokvels` | 403 | 403 | 403 | 200 |
-| `GET /api/stokvels/{id}` | 404 | 200 | 200 | 404 unless also a member |
-| `GET /api/stokvels/{id}/members` | 404 | 200 | 200 | 404 unless also a member |
-| `POST /api/stokvels/{id}/members/{userId}` | 404 | 403 | 204 | 404 unless also a member with the required stokvel role |
-| `GET /api/stokvels/{id}/cycles` | 404 | 200 | 200 | 404 unless also a member |
-| `GET /api/stokvels/{id}/cycles/{cycleId}/contributions` | 404 | 200 | 200 | 404 unless also a member |
-| `POST /api/stokvels/{id}/cycles` | 404 | 403 | 201 | 404 unless also a member with the required stokvel role |
-| `POST /api/stokvels/{id}/cycles/{cycleId}/payout` | 404 | 403 | 200 | 404 unless also a member with the required stokvel role |
-| `POST /api/stokvels/{id}/members/{userId}/contributions` (own contribution) | 404 | 201 | 201 | 404 unless a member |
-| `POST /api/stokvels/{id}/members/{otherUserId}/contributions` | 404 | 403 | 201 | 404 unless a member |
+| `GET /api/v1/stokvels` | 403 | 403 | 403 | 200 |
+| `GET /api/v1/stokvels/{id}` | 404 | 200 | 200 | 404 unless also a member |
+| `GET /api/v1/stokvels/{id}/members` | 404 | 200 | 200 | 404 unless also a member |
+| `POST /api/v1/stokvels/{id}/members/{userId}` | 404 | 403 | 204 | 404 unless also a member with the required stokvel role |
+| `GET /api/v1/stokvels/{id}/cycles` | 404 | 200 | 200 | 404 unless also a member |
+| `GET /api/v1/stokvels/{id}/cycles/{cycleId}/contributions` | 404 | 200 | 200 | 404 unless also a member |
+| `POST /api/v1/stokvels/{id}/cycles` | 404 | 403 | 201 | 404 unless also a member with the required stokvel role |
+| `POST /api/v1/stokvels/{id}/cycles/{cycleId}/payout` | 404 | 403 | 200 | 404 unless also a member with the required stokvel role |
+| `POST /api/v1/stokvels/{id}/members/{userId}/contributions` (own contribution) | 404 | 201 | 201 | 404 unless a member |
+| `POST /api/v1/stokvels/{id}/members/{otherUserId}/contributions` | 404 | 403 | 201 | 404 unless a member |
 
 The status codes above describe the authorization decision; request validation and domain conflicts can still return their normal 400/409 responses. The payout endpoint records the processing timestamp on the cycle; it does not initiate a real bank transfer because this project has no payment-provider integration.
 
@@ -1371,86 +1371,51 @@ The status codes above describe the authorization decision; request validation a
 The full test suite passed in the recorded local run. The Ryuk cleanup helper was disabled to work around the local Testcontainers startup issue; the test fixture completed and disposed of its PostgreSQL container. Re-run the suite after subsequent code changes. The environment override is a local test workaround, not a production configuration requirement.
 
 
-<!-- ASSIGNMENT_6_2_OBSERVABILITY -->
-## Assignment 6.2 — Observability and POPIA-Compliant Telemetry
+## Assignment 6.3 — Ready for the Frontend
 
-### Telemetry configuration
+### API versioning
+All controllers use the shared route constants in `API/Common/ApiRoutes.cs`. The refresh-token cookie path is `/api/v1/auth`, matching the versioned authentication endpoints. Existing integration-test request paths were updated to `/api/v1`; assertions were otherwise left unchanged.
 
-The API registers OpenTelemetry with service name `ronditrack-api`.
-ASP.NET Core request tracing excludes paths beginning with `/health`.
-The custom payout activity source and the Npgsql activity source are registered.
-Metrics include the runtime meter and the RondiTrack business meter.
+### CORS and cookies
+`Cors:AllowedOrigins` is empty in `API/appsettings.json`; Development allows only `http://localhost:3000` in `API/appsettings.Development.json`. The policy allows credentials, explicit methods and headers (including `Idempotency-Key`), and exposes `Retry-After`, `X-Correlation-ID`, and `Idempotency-Replayed`. It never reflects an arbitrary Origin and never uses `*`.
 
-Set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable the OTLP exporter. When the
-setting is absent or blank, the application does not configure the OTLP
-exporter. Automated tests should not require a running telemetry dashboard.
+Cookie deployment notes:
+- `http://localhost:3000` to a local API is cross-origin because the ports differ; credentialed fetches must use `credentials: "include"` and the API must allow the exact frontend origin. A Secure cookie requires HTTPS in normal browser use, so local HTTP development may need a development-only cookie Secure setting if the browser will not send it.
+- `https://app.ronditrack.co.za` to `https://api.ronditrack.co.za` is cross-origin but normally same-site (same scheme and registrable domain). CORS is still required.
+- `https://ronditrack.vercel.app` to `https://ronditrack-api.azurewebsites.net` is cross-origin and cross-site. A refresh cookie generally requires `SameSite=None; Secure`; browser third-party-cookie restrictions can still block it. Prefer a same-site custom API domain or a backend-for-frontend where possible.
 
-Example environment setting:
+### Rate limiting and middleware order
+The configured policies are:
+- Login: fixed window by remote IP, default 5 attempts per 60 seconds.
+- Contributions: fixed window by authenticated subject, default 25 attempts per 60 seconds.
+- Payouts: fixed window by authenticated subject, default 5 attempts per 60 seconds.
 
-```bash
-export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
-```
+A fixed window is simple and bounded. The contribution limit is intentionally high enough for a treasurer's batch after a meeting, but repeated batches can still hit the window. Tune the values using observed traffic. Every limiter rejection is HTTP 429 with `Retry-After`, `application/problem+json`, and `correlationId`.
 
-Use the endpoint appropriate for your actual collector deployment.
+Pipeline order is routing, CORS, correlation/error middleware, authentication, rate limiting, authorization, then controller endpoints. CORS runs before authorization so preflights and error responses can carry CORS headers. Authentication precedes rate limiting so money policies can partition by the authenticated subject; rate limiting precedes authorization so rejected requests are bounded before policy evaluation. The contribution idempotency logic runs inside the endpoint after the limiter, so a 429 does not reserve or store an idempotency key. After the window resets, the same key can succeed, and subsequent retries replay the stored response.
 
-### Business metrics and trace tags
+The limiters are in-memory and per process. Three API instances can each allow their own configured limit, so the effective aggregate may be roughly three times the configured limit. A shared Wi-Fi IP also shares the login partition; unrelated users behind that IP may affect one another. Distributed production enforcement requires a shared limiter/store.
 
-The business meter is named `RondiTrack.Business`. The implementation defines
-counters for contributions recorded, payouts processed, and authorization
-refusals. Payout outcomes and refusal reasons are intended to use bounded
-values such as `success`, `failure`, `not_found`, and `forbidden`.
+### Home screen response
+`GET /api/v1/me/home` returns all stokvels associated with the authenticated user, including the user's membership role, current cycle (if one is active), amount paid this cycle, amount owed, and next payout date. The query uses `TimeProvider`; dates are represented as UTC. It does not return other members' contributions. Money is represented as integer cents so TypeScript does not need binary floating-point decimal arithmetic.
 
-Do not add user IDs, stokvel IDs, email addresses, contribution amounts,
-tokens, or other unbounded or personal values as metric tags.
+### Error contract inventory
+| Source/status | Response contract |
+|---|---|
+| FluentValidation / invalid model, 400 | `application/problem+json`, `title`, `status`, `detail`, `instance`, `errors` map with camelCase keys, and `correlationId` |
+| Invalid JSON / strict numeric conversion, 400 | Framework model-state Problem Details with safe field errors; numeric JSON fields do not accept quoted numeric strings |
+| Authentication failure, 401 | Problem Details with a safe authentication message |
+| Authorization refusal, 403 | Problem Details with a safe permission message |
+| Missing resource, 404 | Problem Details |
+| Conflict / duplicate / concurrency, 409 | Problem Details |
+| Business-rule validation, 422 | Problem Details |
+| Rate-limit rejection, 429 | `application/problem+json`, `Retry-After`, title/detail/status and `correlationId` |
+| Unexpected server exception, 500 | Generic Problem Details; internal exception messages and stack traces are not returned |
 
-The payout activity is named `payout.process`. Review exported traces to
-confirm the payout span and its database child spans are present before
-claiming end-to-end trace evidence.
+The exception middleware logs the exception server-side with its correlation ID, while returning generic detail for unexpected 5xx failures. Do not expose exception type names or stack traces to clients.
 
-### Correlation IDs and problem responses
+### TypeScript contract
+The separate `clients/typescript/` package pins `openapi-typescript` and `typescript`, includes the home-screen example, and runs `tsc --noEmit --strict`. Start the API with OpenAPI enabled, then run `npm install`, `npm run generate`, and `npm run typecheck` from that directory. The committed declaration currently covers the home endpoint used by the example. For the contract-change demonstration, temporarily rename `AmountOwedCents` on `StokvelHomeItem` in `API/DTOs/Me/HomeResponse.cs`, regenerate the declaration, and run `npm run typecheck`: the `totalOwedCents` implementation should fail because `amountOwedCents` no longer exists. Restore the C# property name, regenerate again, and confirm the typecheck passes. This demonstrates that the TypeScript consumer is checked against the server's OpenAPI contract.
 
-Problem responses should expose the W3C trace ID as `correlationId` when a
-request has an active W3C activity. Keep caller-provided valid `traceparent`
-context intact. Verify framework-generated authentication failures and
-application-generated errors separately, because they can use different
-response paths.
-
-### POPIA logging rules
-
-- Never log passwords, access tokens, refresh tokens, signing keys, or request
-  and response bodies.
-- Do not log email addresses, names, or contribution amounts.
-- For expected 4xx failures, log the status, correlation ID, and exception
-  type only; do not log exception messages that may repeat submitted data.
-- For unexpected 5xx failures, retain the exception in protected server logs
-  while returning generic client details and a correlation ID.
-- Log security events with pseudonymous internal identifiers where necessary.
-- Keep EF Core SQL command logging configured once. Never enable
-  `EnableSensitiveDataLogging` in production.
-
-### Health probes
-
-`/health/live` should only report whether the API process can respond and must
-not depend on PostgreSQL. `/health/ready` should check PostgreSQL and be
-available without authentication. Both endpoints should return minimal
-health text rather than internal infrastructure details.
-
-**Evidence still to record from the actual environment:**
-- Liveness response with the database running and stopped.
-- Readiness response and elapsed time with PostgreSQL running.
-- Readiness response and elapsed time with PostgreSQL stopped, including
-  confirmation that the timeout bounds the request.
-- Automated test results for anonymous probes and W3C trace propagation.
-- Captured-log checks for credentials, email addresses, tokens, and amounts.
-- Metric tests and a payout trace showing nested database spans.
-
-Do not record measurements or test results until they have actually been
-observed. A successful compilation alone does not prove these behaviours.
-
-### Annual payout reporting
-
-Use the persisted contribution-cycle payout records and a database query for
-annual payout reporting. Do not derive the answer from a counter, because
-metrics are operational aggregates and are not a durable financial ledger.
-<!-- END ASSIGNMENT_6_2_OBSERVABILITY -->
-
+### Verification status and known gaps
+This source package was updated from the submitted ZIP, but a .NET SDK is not available in this execution environment, so no build or integration test is claimed as passing. The existing PostgreSQL integration fixture requires Docker. Run the full test suite with Docker available, including CORS preflight, rate-limit rejection, idempotency-after-429, independent user partitions, home response, strict numeric input, and versioned refresh-cookie tests. Review cookie `SameSite`/`Secure` behavior against the actual production deployment before release.

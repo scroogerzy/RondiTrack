@@ -1,0 +1,14 @@
+{
+  "name": "ronditrack-typescript-contract",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "generate": "openapi-typescript http://localhost:5000/openapi/v1.json -o src/generated/openapi.d.ts",
+    "typecheck": "tsc --noEmit --strict",
+    "check": "npm run generate && npm run typecheck"
+  },
+  "devDependencies": {
+    "openapi-typescript": "7.6.1",
+    "typescript": "5.7.3"
+  }
+}
