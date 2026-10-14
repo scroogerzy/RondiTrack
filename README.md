@@ -1369,3 +1369,88 @@ The status codes above describe the authorization decision; request validation a
 - Reported build duration: 591.0 seconds
 
 The full test suite passed in the recorded local run. The Ryuk cleanup helper was disabled to work around the local Testcontainers startup issue; the test fixture completed and disposed of its PostgreSQL container. Re-run the suite after subsequent code changes. The environment override is a local test workaround, not a production configuration requirement.
+
+
+<!-- ASSIGNMENT_6_2_OBSERVABILITY -->
+## Assignment 6.2 — Observability and POPIA-Compliant Telemetry
+
+### Telemetry configuration
+
+The API registers OpenTelemetry with service name `ronditrack-api`.
+ASP.NET Core request tracing excludes paths beginning with `/health`.
+The custom payout activity source and the Npgsql activity source are registered.
+Metrics include the runtime meter and the RondiTrack business meter.
+
+Set `OTEL_EXPORTER_OTLP_ENDPOINT` to enable the OTLP exporter. When the
+setting is absent or blank, the application does not configure the OTLP
+exporter. Automated tests should not require a running telemetry dashboard.
+
+Example environment setting:
+
+```bash
+export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4317
+```
+
+Use the endpoint appropriate for your actual collector deployment.
+
+### Business metrics and trace tags
+
+The business meter is named `RondiTrack.Business`. The implementation defines
+counters for contributions recorded, payouts processed, and authorization
+refusals. Payout outcomes and refusal reasons are intended to use bounded
+values such as `success`, `failure`, `not_found`, and `forbidden`.
+
+Do not add user IDs, stokvel IDs, email addresses, contribution amounts,
+tokens, or other unbounded or personal values as metric tags.
+
+The payout activity is named `payout.process`. Review exported traces to
+confirm the payout span and its database child spans are present before
+claiming end-to-end trace evidence.
+
+### Correlation IDs and problem responses
+
+Problem responses should expose the W3C trace ID as `correlationId` when a
+request has an active W3C activity. Keep caller-provided valid `traceparent`
+context intact. Verify framework-generated authentication failures and
+application-generated errors separately, because they can use different
+response paths.
+
+### POPIA logging rules
+
+- Never log passwords, access tokens, refresh tokens, signing keys, or request
+  and response bodies.
+- Do not log email addresses, names, or contribution amounts.
+- For expected 4xx failures, log the status, correlation ID, and exception
+  type only; do not log exception messages that may repeat submitted data.
+- For unexpected 5xx failures, retain the exception in protected server logs
+  while returning generic client details and a correlation ID.
+- Log security events with pseudonymous internal identifiers where necessary.
+- Keep EF Core SQL command logging configured once. Never enable
+  `EnableSensitiveDataLogging` in production.
+
+### Health probes
+
+`/health/live` should only report whether the API process can respond and must
+not depend on PostgreSQL. `/health/ready` should check PostgreSQL and be
+available without authentication. Both endpoints should return minimal
+health text rather than internal infrastructure details.
+
+**Evidence still to record from the actual environment:**
+- Liveness response with the database running and stopped.
+- Readiness response and elapsed time with PostgreSQL running.
+- Readiness response and elapsed time with PostgreSQL stopped, including
+  confirmation that the timeout bounds the request.
+- Automated test results for anonymous probes and W3C trace propagation.
+- Captured-log checks for credentials, email addresses, tokens, and amounts.
+- Metric tests and a payout trace showing nested database spans.
+
+Do not record measurements or test results until they have actually been
+observed. A successful compilation alone does not prove these behaviours.
+
+### Annual payout reporting
+
+Use the persisted contribution-cycle payout records and a database query for
+annual payout reporting. Do not derive the answer from a counter, because
+metrics are operational aggregates and are not a durable financial ledger.
+<!-- END ASSIGNMENT_6_2_OBSERVABILITY -->
+
