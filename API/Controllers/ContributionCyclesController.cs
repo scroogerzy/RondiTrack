@@ -1,3 +1,5 @@
+using RondiTrack.Services;
+using System.Diagnostics;
 using RondiTrack.Auth;
 using Microsoft.AspNetCore.Mvc;
 using RondiTrack.Common;
@@ -24,15 +26,18 @@ public class ContributionCyclesController : ControllerBase
 
     private readonly IContributionRepository
         _contributionRepository;
+    private readonly RondiTrackMetrics _metrics;
 
     public ContributionCyclesController(
         IContributionCycleRepository cycleRepository,
         IStokvelRepository stokvelRepository,
-        IContributionRepository contributionRepository)
+        IContributionRepository contributionRepository,
+        RondiTrackMetrics metrics)
     {
         _cycleRepository = cycleRepository;
         _stokvelRepository = stokvelRepository;
         _contributionRepository = contributionRepository;
+        _metrics = metrics;
     }
 
     /// Returns contribution cycles in deterministic, keyset-paginated order.
@@ -402,15 +407,36 @@ public class ContributionCyclesController : ControllerBase
     [HttpPost("{cycleId:guid}/payout")]
     public async Task<IActionResult> ProcessPayout(Guid stokvelId, Guid cycleId)
     {
-        var cycle = await _cycleRepository.GetByIdAsync(cycleId);
-        if (cycle is null || cycle.StokvelId != stokvelId)
-            return ProblemResponses.NotFound(
-                $"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.",
-                HttpContext.Request.Path);
+        using var activity = RondiTrackActivity.Source.StartActivity("payout.process");
+        activity?.SetTag("payout.operation", "process");
 
-        cycle.ProcessPayout(DateTime.UtcNow);
-        await _cycleRepository.UpdateAsync(cycle);
-        return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
+        try
+        {
+            var cycle = await _cycleRepository.GetByIdAsync(cycleId);
+            if (cycle is null || cycle.StokvelId != stokvelId)
+            {
+                activity?.SetTag("payout.outcome", "not_found");
+                _metrics.AuthorizationRefused("not_found");
+                _metrics.PayoutProcessed("not_found");
+                return ProblemResponses.NotFound(
+                    "Contribution cycle was not found.",
+                    HttpContext.Request.Path);
+            }
+
+            cycle.ProcessPayout(DateTime.UtcNow);
+            await _cycleRepository.UpdateAsync(cycle);
+
+            activity?.SetTag("payout.outcome", "success");
+            _metrics.PayoutProcessed("success");
+            return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
+        }
+        catch (Exception)
+        {
+            activity?.SetTag("payout.outcome", "failure");
+            activity?.SetStatus(ActivityStatusCode.Error);
+            _metrics.PayoutProcessed("failure");
+            throw;
+        }
     }
 
 }

@@ -28,6 +28,7 @@ public class StokvelsController : ControllerBase
     private readonly IUserRepository _userRepository;
     private readonly IStokvelService _stokvelService;
     private readonly IStokvelMemberRepository _stokvelMemberRepository;
+    private readonly RondiTrackMetrics _metrics;
 
     /// <summary>
     /// Receives the repositories and service required by the endpoints.
@@ -36,12 +37,14 @@ public class StokvelsController : ControllerBase
         IStokvelRepository stokvelRepository,
         IUserRepository userRepository,
         IStokvelService stokvelService,
-        IStokvelMemberRepository stokvelMemberRepository)
+        IStokvelMemberRepository stokvelMemberRepository,
+        RondiTrackMetrics metrics)
     {
         _stokvelRepository = stokvelRepository;
         _userRepository = userRepository;
         _stokvelService = stokvelService;
         _stokvelMemberRepository = stokvelMemberRepository;
+        _metrics = metrics;
     }
 
     /// <summary>
@@ -330,9 +333,7 @@ public class StokvelsController : ControllerBase
         return result switch
         {
             RecordContributionResult.Recorded recorded =>
-                StatusCode(
-                    StatusCodes.Status201Created,
-                    recorded.Contribution),
+                RecordContributionResponse(recorded.Contribution),
 
             RecordContributionResult.ReplayedFromCache replayed =>
                 StatusCode(
@@ -379,5 +380,12 @@ public class StokvelsController : ControllerBase
                     "The contribution could not be recorded.",
                     HttpContext.Request.Path)
         };
+    }
+
+    private ActionResult<ContributionResponse> RecordContributionResponse(
+        ContributionResponse contribution)
+    {
+        _metrics.ContributionRecorded();
+        return StatusCode(StatusCodes.Status201Created, contribution);
     }
 }

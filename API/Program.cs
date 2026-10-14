@@ -1,3 +1,5 @@
+using OpenTelemetry.Resources;
+using OpenTelemetry;
 using OpenTelemetry.Metrics;
 using OpenTelemetry.Trace;
 
@@ -119,7 +121,8 @@ var telemetry = builder.Services.AddOpenTelemetry()
         .AddAspNetCoreInstrumentation(options =>
             options.Filter = context =>
                 !context.Request.Path.StartsWithSegments("/health"))
-        .AddNpgsql())
+        .AddSource("Npgsql")
+        .AddSource(RondiTrack.Services.RondiTrackActivity.Source.Name))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddMeter("System.Runtime")
