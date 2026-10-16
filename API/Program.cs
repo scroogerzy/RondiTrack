@@ -1,3 +1,7 @@
+using OpenTelemetry.Trace;
+using OpenTelemetry.Metrics;
+using OpenTelemetry;
+using OpenTelemetry.Resources;
 
 using FluentValidation;
 using FluentValidation.AspNetCore;
@@ -79,7 +83,7 @@ builder.Services.AddControllers(options =>
 .ConfigureApiBehaviorOptions(options =>
 {
     options.SuppressModelStateInvalidFilter = false;
-      options.AllowInputFormatterExceptionMessages = false;
+
     options.InvalidModelStateResponseFactory = context =>
     {
         var errors = context.ModelState
@@ -158,6 +162,36 @@ builder.Services.AddSingleton<
 
 // Register the business service.
 builder.Services.AddScoped<IStokvelService, StokvelService>();
+
+// Assignment 6.2: OpenTelemetry traces, metrics and logs.
+builder.Services.AddSingleton<RondiTrackMetrics>();
+
+var telemetry = builder.Services.AddOpenTelemetry()
+    .ConfigureResource(resource => resource.AddService("ronditrack-api"))
+    .WithTracing(tracing => tracing
+        .AddAspNetCoreInstrumentation(options =>
+            options.Filter = context =>
+                !context.Request.Path.StartsWithSegments("/health"))
+        .AddSource("Npgsql")
+        .AddSource(RondiTrack.Services.RondiTrackActivity.Source.Name))
+    .WithMetrics(metrics => metrics
+        .AddAspNetCoreInstrumentation()
+        .AddMeter("System.Runtime")
+        .AddMeter(RondiTrackMetrics.MeterName))
+    .WithLogging();
+
+if (!string.IsNullOrWhiteSpace(
+        builder.Configuration["OTEL_EXPORTER_OTLP_ENDPOINT"]))
+{
+    telemetry.UseOtlpExporter();
+}
+
+// PostgreSQL readiness check; liveness does not depend on the database.
+builder.Services.AddHealthChecks()
+    .AddDbContextCheck<RondiTrackDbContext>(
+        name: "postgres",
+        tags: new[] { "ready" });
+
 
 // Exact-origin CORS: credentials cannot be combined with a wildcard origin.
 var allowedOrigins = builder.Configuration
@@ -301,6 +335,22 @@ using (var scope = app.Services.CreateScope())
         await dbContext.SaveChangesAsync();
     }
 }
+
+// Liveness checks the process only. Readiness checks PostgreSQL.
+app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = _ => false,
+    ResponseWriter = async (context, report) =>
+        await context.Response.WriteAsync(report.Status.ToString())
+}).AllowAnonymous();
+
+app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
+{
+    Predicate = check => check.Tags.Contains("ready"),
+    ResponseWriter = async (context, report) =>
+        await context.Response.WriteAsync(report.Status.ToString())
+}).AllowAnonymous();
+
 
 // Expose documentation endpoints in Development only.
 if (app.Environment.IsDevelopment())
