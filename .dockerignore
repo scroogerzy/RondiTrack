@@ -1,0 +1,12 @@
+**/bin/
+**/obj/
+.git/
+.github/
+.vs/
+.vscode/
+TestResults/
+**/TestResults/
+.env
+.env.*
+!.env.example
+README.md.assignment-6-2-backup-local

@@ -22,6 +22,7 @@ public class RondiTrackDbContext : DbContext
     public DbSet<StokvelMember> StokvelMembers => Set<StokvelMember>();
     public DbSet<ContributionCycle> ContributionCycles => Set<ContributionCycle>();
     public DbSet<Contribution> Contributions => Set<Contribution>();
+    public DbSet<ArrearRecord> ArrearRecords => Set<ArrearRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -135,6 +136,9 @@ public class RondiTrackDbContext : DbContext
             entity.Property(cycle => cycle.Version)
                 .IsRowVersion();
 
+            entity.Property(cycle => cycle.ClosedAtUtc)
+                .HasColumnType("timestamp with time zone");
+
             entity.HasAlternateKey(cycle => new
             {
                 cycle.StokvelId,
@@ -222,6 +226,34 @@ public class RondiTrackDbContext : DbContext
             })
             .HasDatabaseName(
                 "IX_Contributions_StokvelId_Cycle_RecordedAt_Id");
+        });
+
+
+        modelBuilder.Entity<ArrearRecord>(entity =>
+        {
+            entity.HasKey(arrear => arrear.Id);
+            entity.Property(arrear => arrear.Id).ValueGeneratedNever();
+            entity.Property(arrear => arrear.ShortfallCents).IsRequired();
+            entity.Property(arrear => arrear.RecordedAtUtc).IsRequired();
+
+            entity.HasOne<User>()
+                .WithMany()
+                .HasForeignKey(arrear => arrear.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne<Stokvel>()
+                .WithMany()
+                .HasForeignKey(arrear => arrear.StokvelId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasIndex(arrear => new
+            {
+                arrear.StokvelId,
+                arrear.UserId,
+                arrear.CyclePeriodNumber
+            })
+            .IsUnique()
+            .HasDatabaseName("UX_ArrearRecords_StokvelId_UserId_CyclePeriodNumber");
         });
 
         base.OnModelCreating(modelBuilder);
