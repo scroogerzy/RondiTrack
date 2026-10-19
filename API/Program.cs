@@ -28,6 +28,7 @@ using System.Security.Claims;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using RondiTrack.Common;
+using RondiTrack.API.Services.BackgroundJobs;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -165,6 +166,8 @@ builder.Services.AddScoped<IStokvelService, StokvelService>();
 
 // Assignment 6.2: OpenTelemetry traces, metrics and logs.
 builder.Services.AddSingleton<RondiTrackMetrics>();
+builder.Services.AddHostedService<CycleCloseBackgroundService>();
+builder.Services.AddHostedService<HousekeepingBackgroundService>();
 
 var telemetry = builder.Services.AddOpenTelemetry()
     .ConfigureResource(resource => resource.AddService("ronditrack-api"))
@@ -173,6 +176,7 @@ var telemetry = builder.Services.AddOpenTelemetry()
             options.Filter = context =>
                 !context.Request.Path.StartsWithSegments("/health"))
         .AddSource("Npgsql")
+        .AddSource("RondiTrack.CycleClose")
         .AddSource(RondiTrack.Services.RondiTrackActivity.Source.Name))
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()

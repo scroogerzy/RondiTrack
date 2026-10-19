@@ -24,6 +24,9 @@ public interface IIdempotencyStore
     Task SaveAsync(
         string key,
         IdempotencyRecord record);
+
+    /// <summary>Removes entries reserved before the supplied UTC cutoff.</summary>
+    Task<int> RemoveOlderThanAsync(DateTime cutoffUtc);
 }
 
 /// <summary>

@@ -1419,3 +1419,104 @@ The separate `clients/typescript/` package pins `openapi-typescript` and `typesc
 
 ### Verification status and known gaps
 This source package was updated from the submitted ZIP, but a .NET SDK is not available in this execution environment, so no build or integration test is claimed as passing. The existing PostgreSQL integration fixture requires Docker. Run the full test suite with Docker available, including CORS preflight, rate-limit rejection, idempotency-after-429, independent user partitions, home response, strict numeric input, and versioned refresh-cookie tests. Review cookie `SameSite`/`Secure` behavior against the actual production deployment before release.
+
+## Run it and build against it
+
+### Run with Docker Compose
+
+Copy `.env.example` to `.env` and fill in strong, locally generated secret
+values before starting the stack. Do not commit `.env`.
+
+```bash
+cp .env.example .env
+# Edit .env and set every required value.
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+docker compose logs --tail=100 api db
+```
+
+The API is published on port 8080. Use the API's configured OpenAPI and
+Scalar routes; confirm their actual paths in `API/Program.cs` before relying
+on them. PostgreSQL is internal to the Compose network and uses a named
+volume for persistence. `depends_on` waits for the database health check.
+
+Stop the services with `docker compose down`. This preserves the named
+database volume. `docker compose down -v` deletes that volume and its data.
+
+### Image inspection and build evidence
+
+Capture real measurements on the machine where Docker is available:
+
+```bash
+docker history ronditrack-api:6.4
+docker image inspect ronditrack-api:6.4
+docker image inspect ronditrack-api:6.4 --format '{{.Size}}'
+time docker build --no-cache -t ronditrack-api:6.4 .
+```
+
+Record the actual image size and build time in the submission. The runtime
+stage should contain the published application and ASP.NET runtime, not the
+SDK, source tree, or test output. Tests are run in the CI build/test job
+before the image job; the production image does not need the test project.
+
+### Background jobs and cycle boundary
+
+The cycle-close worker uses the `Africa/Johannesburg` time zone and an
+injected `TimeProvider`. A cycle whose end date is the 25th becomes eligible
+at midnight local time on the 26th, which is 22:00 UTC on the 25th. The
+worker processes each stokvel transactionally, records arrears for short-paid
+members, and creates the following cycle. The documented catch-up policy
+must be verified against the implementation and integration tests.
+
+Housekeeping retention is configurable through
+`Housekeeping__RefreshTokenRetentionDays` and
+`Housekeeping__IdempotencyRetentionHours`. Verify the configured values and
+the actual cleanup behaviour before production use.
+
+### Configuration reference
+
+Environment variables use double underscores (`__`) for nested .NET
+configuration keys.
+
+| Variable | Purpose | Required / secret |
+|---|---|---|
+| `POSTGRES_DB` | PostgreSQL database name | Required |
+| `POSTGRES_USER` | PostgreSQL username | Required |
+| `POSTGRES_PASSWORD` | PostgreSQL password | Required secret |
+| `ConnectionStrings__RondiTrack` | API database connection string; use host `db` in Compose | Required; contains credentials |
+| `Jwt__SigningKey` | JWT signing key | Required secret |
+| `CycleClose__IntervalSeconds` | Cycle-close polling interval | Optional; defaults to app configuration |
+| `Housekeeping__IntervalSeconds` | Housekeeping polling interval | Optional; defaults to app configuration |
+| `Housekeeping__RefreshTokenRetentionDays` | Refresh-token cleanup retention | Optional; defaults to app configuration |
+| `Housekeeping__IdempotencyRetentionHours` | Idempotency-record retention | Optional; defaults to app configuration |
+
+Check `.env.example` and `API/appsettings.json` for the current values and
+ensure the API fails safely when required secrets are missing. Never put
+real secrets in source control, image layers, workflow files, or README
+examples.
+
+### CI and tests
+
+The CI workflow restores dependencies, builds in Release mode, runs the test
+suite, and only builds the image after the test job succeeds. The integration
+tests use Testcontainers and therefore require a working Docker engine. A
+local test run that cannot connect to Docker is **blocked**, not a passing
+integration-test result. Capture the successful CI run URL as evidence after
+the workflow has completed.
+
+### Before production
+
+- Run and pass all unit and PostgreSQL/Testcontainers integration tests.
+- Validate Compose and build the image on a Docker-enabled environment.
+- Use a secret store for production credentials and signing keys.
+- Apply EF Core migrations once through a controlled deployment step, not
+  independently from every API replica.
+- Verify the cycle-close and housekeeping retention settings.
+- Verify seeded demo-account credentials and authentication/refresh-token
+  replay behaviour from the actual seed implementation.
+- Confirm the real OpenAPI/Scalar paths, CORS origins, rate limits,
+  `Idempotency-Key` behaviour, and error response formats against the code.
+- Capture genuine image size, build timing, CI run links, and test evidence;
+  do not report unmeasured values as results.
+

@@ -10,6 +10,8 @@ public sealed class RondiTrackMetrics : IDisposable
     private readonly Counter<long> _contributions;
     private readonly Counter<long> _payouts;
     private readonly Counter<long> _authorizationRefusals;
+    private readonly Counter<long> _cyclesClosed;
+    private readonly Counter<long> _arrearsRecorded;
 
     public RondiTrackMetrics(IMeterFactory meterFactory)
     {
@@ -17,6 +19,8 @@ public sealed class RondiTrackMetrics : IDisposable
         _contributions = _meter.CreateCounter<long>("ronditrack.contributions.recorded");
         _payouts = _meter.CreateCounter<long>("ronditrack.payouts.processed");
         _authorizationRefusals = _meter.CreateCounter<long>("ronditrack.authorization.refusals");
+        _cyclesClosed = _meter.CreateCounter<long>("ronditrack.cycles.closed");
+        _arrearsRecorded = _meter.CreateCounter<long>("ronditrack.arrears.recorded");
     }
 
     public void ContributionRecorded() =>
@@ -27,6 +31,10 @@ public sealed class RondiTrackMetrics : IDisposable
 
     public void AuthorizationRefused(string reason) =>
         _authorizationRefusals.Add(1, new KeyValuePair<string, object?>("reason", reason));
+
+    public void CycleClosed() => _cyclesClosed.Add(1);
+
+    public void ArrearRecorded() => _arrearsRecorded.Add(1);
 
     public void Dispose() => _meter.Dispose();
 }
