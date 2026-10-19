@@ -30,7 +30,7 @@ public class IdempotencyTests
     {
         // Arrange: create a user.
         var userResponse = await _client.PostAsJsonAsync(
-            "/api/users",
+            "/api/v1/users",
             new
             {
                 FullName = $"Idempotency User {Guid.NewGuid()}",
@@ -49,7 +49,7 @@ public class IdempotencyTests
 
         // Arrange: create a stokvel.
         var stokvelResponse = await _client.PostAsJsonAsync(
-            "/api/stokvels",
+            "/api/v1/stokvels",
             new
             {
                 Name = $"Idempotency Stokvel {Guid.NewGuid()}",
@@ -72,7 +72,7 @@ public class IdempotencyTests
         var cycleEndDate = cycleStartDate.AddMonths(1);
 
         var cycleResponse = await _client.PostAsJsonAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles",
+            $"/api/v1/stokvels/{stokvel.Id}/cycles",
             new
             {
                 // Must match Cycle = 1 in the contribution request below.
@@ -101,7 +101,7 @@ public class IdempotencyTests
 
         // Add the user to the stokvel.
         var memberResponse = await _client.PostAsync(
-            $"/api/stokvels/{stokvel.Id}/members/{user.Id}",
+            $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}",
             null);
 
         Assert.Equal(
@@ -120,7 +120,7 @@ public class IdempotencyTests
         // Act: submit the first contribution request.
         using var firstRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            $"/api/stokvels/{stokvel.Id}/members/{user.Id}/contributions");
+            $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}/contributions");
 
         firstRequest.Headers.Add("Idempotency-Key", key);
         firstRequest.Content = JsonContent.Create(request);
@@ -130,7 +130,7 @@ public class IdempotencyTests
         // Act: retry with the same key and identical payload.
         using var secondRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            $"/api/stokvels/{stokvel.Id}/members/{user.Id}/contributions");
+            $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}/contributions");
 
         secondRequest.Headers.Add("Idempotency-Key", key);
         secondRequest.Content = JsonContent.Create(request);

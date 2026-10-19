@@ -17,3 +17,9 @@ artifacts/assignment53-test-after-concurrency-fix.log
 
 # Local development settings
 **/appsettings.Development.json
+
+# Node.js dependencies
+**/node_modules/
+
+# Local assignment backups
+*.assignment-*-backup

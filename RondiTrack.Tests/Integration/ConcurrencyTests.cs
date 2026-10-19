@@ -67,7 +67,7 @@ public sealed class ConcurrencyTests
     public async Task Update_with_stale_xmin_returns_409_problem_json()
     {
         var created = await CreateCycleAsync();
-        var url = $"/api/stokvels/{created.StokvelId}/cycles/{created.Cycle.Id}";
+        var url = $"/api/v1/stokvels/{created.StokvelId}/cycles/{created.Cycle.Id}";
 
         // GET exposes the token that the client must echo on update.
         var original = await _client.GetFromJsonAsync<ContributionCycleResponse>(url);
@@ -111,7 +111,7 @@ public sealed class ConcurrencyTests
 
     private async Task<(Guid StokvelId, ContributionCycleResponse Cycle)> CreateCycleAsync()
     {
-        var stokvelResponse = await _client.PostAsJsonAsync("/api/stokvels", new
+        var stokvelResponse = await _client.PostAsJsonAsync("/api/v1/stokvels", new
         {
             name = $"Concurrency Stokvel {Guid.NewGuid():N}",
             monthlyContribution = 500m
@@ -123,7 +123,7 @@ public sealed class ConcurrencyTests
 
         var start = DateTime.UtcNow.Date;
         var cycleResponse = await _client.PostAsJsonAsync(
-            $"/api/stokvels/{stokvel.Id}/cycles",
+            $"/api/v1/stokvels/{stokvel.Id}/cycles",
             new
             {
                 periodNumber = 1,

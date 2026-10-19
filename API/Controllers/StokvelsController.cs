@@ -1,8 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using RondiTrack.Auth;
+using RondiTrack.Common;
 
 using Microsoft.AspNetCore.Mvc;
-using RondiTrack.Common;
+using Microsoft.AspNetCore.RateLimiting;
 using RondiTrack.Domain.Repositories;
 using RondiTrack.Infrastructure.Data;
 using RondiTrack.API.Data;
@@ -21,7 +22,7 @@ namespace RondiTrack.Controllers;
 [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
 [ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
-[Route("api/[controller]")]
+[Route(ApiRoutes.Stokvels)]
 public class StokvelsController : ControllerBase
 {
     private readonly IStokvelRepository _stokvelRepository;
@@ -307,6 +308,7 @@ public class StokvelsController : ControllerBase
     /// </summary>
     [StokvelAuthorize(Policies.RecordContribution)]
     [HttpPost("{stokvelId:guid}/members/{userId:guid}/contributions")]
+    [EnableRateLimiting(RateLimitPolicies.Contributions)]
     public async Task<ActionResult<ContributionResponse>>
         RecordContributionAsync(
             Guid stokvelId,
@@ -326,6 +328,9 @@ public class StokvelsController : ControllerBase
             userId,
             idempotencyKey,
             request);
+
+        Response.Headers["Idempotency-Replayed"] =
+            result is RecordContributionResult.ReplayedFromCache ? "true" : "false";
 
         return result switch
         {

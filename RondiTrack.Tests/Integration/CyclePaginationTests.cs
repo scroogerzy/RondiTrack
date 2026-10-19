@@ -19,7 +19,7 @@ public sealed class CyclePaginationTests
     public async Task Walking_cycle_pages_returns_each_cycle_once_then_an_empty_token()
     {
         var unique = Guid.NewGuid().ToString("N");
-        var stokvelResponse = await _client.PostAsJsonAsync("/api/stokvels", new
+        var stokvelResponse = await _client.PostAsJsonAsync("/api/v1/stokvels", new
         {
             name = $"Cycle Paging Stokvel {unique}",
             monthlyContribution = 500m
@@ -32,7 +32,7 @@ public sealed class CyclePaginationTests
         for (var period = 1; period <= 2; period++)
         {
             var createResponse = await _client.PostAsJsonAsync(
-                $"/api/stokvels/{stokvel.Id}/cycles",
+                $"/api/v1/stokvels/{stokvel.Id}/cycles",
                 new
                 {
                     periodNumber = period,
@@ -43,7 +43,7 @@ public sealed class CyclePaginationTests
             Assert.Equal(HttpStatusCode.Created, createResponse.StatusCode);
         }
 
-        var listUrl = $"/api/stokvels/{stokvel.Id}/cycles?pageSize=1&sortBy=periodNumber&sortDirection=asc";
+        var listUrl = $"/api/v1/stokvels/{stokvel.Id}/cycles?pageSize=1&sortBy=periodNumber&sortDirection=asc";
         var firstResponse = await _client.GetAsync(listUrl);
         Assert.Equal(HttpStatusCode.OK, firstResponse.StatusCode);
         var first = await firstResponse.Content.ReadFromJsonAsync<ContributionCyclePageResponse>();
@@ -62,7 +62,7 @@ public sealed class CyclePaginationTests
         Assert.Equal(string.Empty, second.NextPageToken);
 
         var defaultPage = await _client.GetFromJsonAsync<ContributionCyclePageResponse>(
-            $"/api/stokvels/{stokvel.Id}/cycles");
+            $"/api/v1/stokvels/{stokvel.Id}/cycles");
         Assert.NotNull(defaultPage);
         Assert.Equal(20, defaultPage.PageSize);
     }

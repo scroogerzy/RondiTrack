@@ -1,6 +1,7 @@
 using RondiTrack.Auth;
-using Microsoft.AspNetCore.Mvc;
 using RondiTrack.Common;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using RondiTrack.Domain.Repositories;
 using RondiTrack.Infrastructure.Data;
 using RondiTrack.API.Data;
@@ -13,7 +14,7 @@ namespace RondiTrack.Controllers;
 
 /// Manages contribution cycles for stokvels.
 [ApiController]
-[Route("api/stokvels/{stokvelId:guid}/cycles")]
+[Route(ApiRoutes.Stokvels + "/{stokvelId:guid}/cycles")]
 public class ContributionCyclesController : ControllerBase
 {
     private readonly IContributionCycleRepository
@@ -400,6 +401,7 @@ public class ContributionCyclesController : ControllerBase
     /// <summary>Records that the payout for a contribution cycle has been processed.</summary>
     [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPost("{cycleId:guid}/payout")]
+    [EnableRateLimiting(RateLimitPolicies.Payouts)]
     public async Task<IActionResult> ProcessPayout(Guid stokvelId, Guid cycleId)
     {
         var cycle = await _cycleRepository.GetByIdAsync(cycleId);

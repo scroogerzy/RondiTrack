@@ -33,7 +33,7 @@ public class HappyPathTests
             $"integration-{Guid.NewGuid():N}@example.com");
 
         var response = await _client.PostAsJsonAsync(
-            "/api/users",
+            "/api/v1/users",
             request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -50,7 +50,7 @@ public class HappyPathTests
             500m);
 
         var response = await _client.PostAsJsonAsync(
-            "/api/stokvels",
+            "/api/v1/stokvels",
             request);
 
         Assert.Equal(HttpStatusCode.Created, response.StatusCode);
@@ -62,7 +62,7 @@ public class HappyPathTests
     [Fact]
     public async Task GetUsers_ReturnsSuccess()
     {
-        var response = await _client.GetAsync("/api/users");
+        var response = await _client.GetAsync("/api/v1/users");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }
@@ -73,7 +73,7 @@ public class HappyPathTests
     [Fact]
     public async Task GetStokvels_ReturnsSuccess()
     {
-        var response = await _client.GetAsync("/api/stokvels");
+        var response = await _client.GetAsync("/api/v1/stokvels");
 
         Assert.Equal(HttpStatusCode.OK, response.StatusCode);
     }

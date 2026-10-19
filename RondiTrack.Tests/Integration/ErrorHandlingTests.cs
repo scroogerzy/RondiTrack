@@ -32,7 +32,7 @@ public class ErrorHandlingTests
         };
 
         var response = await _client.PostAsJsonAsync(
-            "/api/users",
+            "/api/v1/users",
             request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -45,7 +45,7 @@ public class ErrorHandlingTests
     public async Task GetUnknownUser_ReturnsNotFound()
     {
         var response = await _client.GetAsync(
-            $"/api/users/{Guid.NewGuid()}");
+            $"/api/v1/users/{Guid.NewGuid()}");
 
         Assert.Equal(HttpStatusCode.NotFound, response.StatusCode);
         Assert.Equal(
@@ -63,7 +63,7 @@ public class ErrorHandlingTests
         };
 
         var response = await _client.PostAsJsonAsync(
-            "/api/stokvels",
+            "/api/v1/stokvels",
             request);
 
         Assert.Equal(HttpStatusCode.BadRequest, response.StatusCode);
@@ -90,7 +90,7 @@ public class ErrorHandlingTests
         };
 
         var stokvelResponse = await _client.PostAsJsonAsync(
-            "/api/stokvels",
+            "/api/v1/stokvels",
             stokvelRequest);
 
         Assert.Equal(HttpStatusCode.Created, stokvelResponse.StatusCode);
@@ -123,7 +123,7 @@ public class ErrorHandlingTests
 
         // First cycle should be accepted.
         var firstCycleResponse = await _client.PostAsJsonAsync(
-            $"/api/stokvels/{stokvelId}/cycles",
+            $"/api/v1/stokvels/{stokvelId}/cycles",
             cycleRequest);
 
         Assert.Equal(
@@ -132,7 +132,7 @@ public class ErrorHandlingTests
 
         // Act: attempt another cycle with the same stokvel and period.
         var duplicateResponse = await _client.PostAsJsonAsync(
-            $"/api/stokvels/{stokvelId}/cycles",
+            $"/api/v1/stokvels/{stokvelId}/cycles",
             cycleRequest);
 
         // Assert: PostgreSQL conflict is handled centrally.
