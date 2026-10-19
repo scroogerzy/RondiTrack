@@ -26,7 +26,7 @@ public class StokvelServiceTests
         var stokvelRepository = new InMemoryStokvelRepository();
         var userRepository = new InMemoryUserRepository();
         var contributionRepository = new InMemoryContributionRepository();
-        var idempotencyStore = new InMemoryIdempotencyStore();
+        var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
         var memberRepository = new InMemoryStokvelMemberRepository();
 
         var stokvel = new Stokvel("Test Stokvel", 500m);
@@ -66,7 +66,7 @@ public class StokvelServiceTests
         var stokvelRepository = new InMemoryStokvelRepository();
         var userRepository = new InMemoryUserRepository();
         var contributionRepository = new InMemoryContributionRepository();
-        var idempotencyStore = new InMemoryIdempotencyStore();
+        var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
         var memberRepository = new InMemoryStokvelMemberRepository();
 
         var stokvel = new Stokvel("Test Stokvel", 500m);
@@ -121,7 +121,7 @@ public class StokvelServiceTests
         var stokvelRepository = new InMemoryStokvelRepository();
         var userRepository = new InMemoryUserRepository();
         var contributionRepository = new InMemoryContributionRepository();
-        var idempotencyStore = new InMemoryIdempotencyStore();
+        var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
         var memberRepository = new InMemoryStokvelMemberRepository();
 
         var stokvel = new Stokvel("Test Stokvel", 500m);

@@ -19,6 +19,9 @@ public class ContributionCycle
     public decimal TargetAmount { get; private set; }
 
     public DateTime? PayoutProcessedAtUtc { get; private set; }
+
+    /// <summary>UTC instant when this contribution cycle was closed.</summary>
+    public DateTime? ClosedAtUtc { get; private set; }
 // Navigation back to the parent stokvel.
 public Stokvel Stokvel { get; private set; } = null!;
 // A contribution cycle contains the contributions recorded for that period.
@@ -86,6 +89,20 @@ public ICollection<Contribution> Contributions { get; private set; }
         TargetAmount = targetAmount;
     }
 
+
+    public bool TryClose(DateTime closedAtUtc)
+    {
+        if (closedAtUtc.Kind != DateTimeKind.Utc)
+            throw new ArgumentException(
+                "Cycle closure time must be UTC.",
+                nameof(closedAtUtc));
+
+        if (ClosedAtUtc is not null)
+            return false;
+
+        ClosedAtUtc = closedAtUtc;
+        return true;
+    }
 
     public void ProcessPayout(DateTime processedAtUtc)
     {

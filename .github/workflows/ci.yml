@@ -1,0 +1,40 @@
+name: RondiTrack CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Restore
+        run: dotnet restore RondiTrack.sln
+
+      - name: Build Release
+        run: dotnet build RondiTrack.sln --configuration Release --no-restore
+
+      - name: Run all tests
+        run: dotnet test RondiTrack.sln --configuration Release --no-build --logger "console;verbosity=normal"
+
+  docker-image:
+    runs-on: ubuntu-latest
+    needs: build-test
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build --tag ronditrack-api:${GITHUB_SHA} .
