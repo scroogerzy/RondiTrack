@@ -13,6 +13,10 @@ describe('formatCents', () => {
     expect(formatCents(cents)).toBe(expected)
   })
 
+  it('formats the seeded arrears amount in cents', () => {
+    expect(formatCents(50_000)).toBe(`R${NBSP}500,00`)
+  })
+
   it('rejects fractional cents', () => {
     expect(() => formatCents(10.5)).toThrow(RangeError)
   })

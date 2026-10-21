@@ -322,20 +322,111 @@ using (var scope = app.Services.CreateScope())
         await dbContext.SaveChangesAsync();
     }
 
-    // The demo's first user owns the seeded demo stokvels. Real memberships
-    // are still checked from StokvelMembers on every protected request.
-    var demoUser = await dbContext.Users.OrderBy(user => user.Email).FirstOrDefaultAsync();
+    // Assignment 7.2 demo memberships intentionally give the same signed-in
+    // user different per-stokvel roles (Treasurer and Member).
+    var seedUsers = await dbContext.Users.OrderBy(user => user.Email).ToListAsync();
+    var starterEmails = new[] { "lerato@example.com", "sibusiso@example.com", "thabo@example.com" };
+    var starterUsers = seedUsers.Where(user => starterEmails.Contains(user.Email, StringComparer.OrdinalIgnoreCase)).ToList();
+    var demoUser = seedUsers.FirstOrDefault(user =>
+        string.Equals(user.Email, "lerato@example.com", StringComparison.OrdinalIgnoreCase))
+        ?? seedUsers.FirstOrDefault();
+    var seedStokvels = await dbContext.Stokvels.ToListAsync();
+    var treasurerStokvel = seedStokvels.FirstOrDefault(stokvel => stokvel.Name == "Ubuntu Savings Club");
+    var memberStokvel = seedStokvels.FirstOrDefault(stokvel => stokvel.Name == "Mzanzi Monthly Stokvel");
+
     if (demoUser is not null)
     {
-        var demoStokvels = await dbContext.Stokvels.ToListAsync();
-        foreach (var stokvel in demoStokvels)
+        foreach (var stokvel in seedStokvels.Where(stokvel =>
+            stokvel.Id == treasurerStokvel?.Id || stokvel.Id == memberStokvel?.Id))
         {
-            var exists = await dbContext.StokvelMembers.AnyAsync(member =>
+            var desiredRole = stokvel.Id == treasurerStokvel?.Id
+                ? RondiTrack.Auth.StokvelRoles.Treasurer
+                : stokvel.Id == memberStokvel?.Id
+                    ? RondiTrack.Auth.StokvelRoles.Member
+                    : RondiTrack.Auth.StokvelRoles.Member;
+            var membership = await dbContext.StokvelMembers.FirstOrDefaultAsync(member =>
                 member.UserId == demoUser.Id && member.StokvelId == stokvel.Id);
-            if (!exists)
+            if (membership is null)
                 dbContext.StokvelMembers.Add(new StokvelMember(
-                    demoUser.Id, stokvel.Id, RondiTrack.Auth.StokvelRoles.Chairperson, DateTime.UtcNow));
+                    demoUser.Id, stokvel.Id, desiredRole, DateTime.UtcNow));
+            else
+                membership.UpdateRole(desiredRole);
         }
+
+        // Other starter users belong to the seeded family stokvel too, so
+        // collected totals and target amounts have realistic member counts.
+        if (treasurerStokvel is not null)
+        {
+            foreach (var otherUser in starterUsers.Where(user => user.Id != demoUser.Id))
+            {
+                var membership = await dbContext.StokvelMembers.FirstOrDefaultAsync(member =>
+                    member.UserId == otherUser.Id && member.StokvelId == treasurerStokvel.Id);
+                if (membership is null)
+                    dbContext.StokvelMembers.Add(new StokvelMember(
+                        otherUser.Id, treasurerStokvel.Id,
+                        RondiTrack.Auth.StokvelRoles.Member, DateTime.UtcNow));
+                else
+                    membership.UpdateRole(RondiTrack.Auth.StokvelRoles.Member);
+            }
+        }
+        await dbContext.SaveChangesAsync();
+    }
+
+    // Seed three periods for Assignment 7.2: an open cycle, a closed cycle
+    // with the demo member in arrears, and a paid-out cycle. The operation is
+    // idempotent and does not create duplicates on subsequent restarts.
+    if (demoUser is not null && treasurerStokvel is not null && starterUsers.Count >= 3)
+    {
+        var utc = DateTimeKind.Utc;
+        var cycleDefinitions = new[]
+        {
+            new { Period = 2, Start = new DateTime(2026, 8, 1, 0, 0, 0, utc), End = new DateTime(2026, 8, 31, 22, 0, 0, utc), Status = "PaidOut" },
+            new { Period = 3, Start = new DateTime(2026, 9, 1, 0, 0, 0, utc), End = new DateTime(2026, 9, 30, 22, 0, 0, utc), Status = "Closed" },
+            new { Period = 4, Start = new DateTime(2026, 10, 1, 0, 0, 0, utc), End = new DateTime(2026, 10, 31, 22, 0, 0, utc), Status = "Open" }
+        };
+        foreach (var definition in cycleDefinitions)
+        {
+            var cycle = await dbContext.ContributionCycles.FirstOrDefaultAsync(item =>
+                item.StokvelId == treasurerStokvel.Id && item.PeriodNumber == definition.Period);
+            if (cycle is null)
+            {
+                cycle = new ContributionCycle(treasurerStokvel.Id, definition.Period,
+                    definition.Start, definition.End, 1500m);
+                if (definition.Status is "Closed" or "PaidOut")
+                    cycle.TryClose(new DateTime(2026, definition.Period == 2 ? 9 : 10, 1, 0, 0, 0, utc));
+                if (definition.Status == "PaidOut")
+                    cycle.ProcessPayout(new DateTime(2026, 9, 2, 0, 0, 0, utc));
+                dbContext.ContributionCycles.Add(cycle);
+            }
+        }
+        await dbContext.SaveChangesAsync();
+
+        var contributionUsersByPeriod = new Dictionary<int, Guid[]>
+        {
+            [2] = starterUsers.Select(user => user.Id).ToArray(),
+            [3] = starterUsers.Where(user => user.Id != demoUser.Id).Select(user => user.Id).ToArray(),
+            [4] = new[] { demoUser.Id, starterUsers.First(user => user.Id != demoUser.Id).Id }
+        };
+        foreach (var pair in contributionUsersByPeriod)
+        {
+            foreach (var userId in pair.Value)
+            {
+                var exists = await dbContext.Contributions.AnyAsync(contribution =>
+                    contribution.StokvelId == treasurerStokvel.Id &&
+                    contribution.UserId == userId && contribution.Cycle == pair.Key);
+                if (!exists)
+                    dbContext.Contributions.Add(new Contribution(
+                        treasurerStokvel.Id, userId, pair.Key, 500m));
+            }
+        }
+
+        var arrearsExists = await dbContext.ArrearRecords.AnyAsync(arrear =>
+            arrear.StokvelId == treasurerStokvel.Id && arrear.UserId == demoUser.Id &&
+            arrear.CyclePeriodNumber == 3);
+        if (!arrearsExists)
+            dbContext.ArrearRecords.Add(new ArrearRecord(
+                treasurerStokvel.Id, demoUser.Id, 3, 50_000,
+                new DateTime(2026, 10, 1, 0, 0, 0, utc)));
         await dbContext.SaveChangesAsync();
     }
 }

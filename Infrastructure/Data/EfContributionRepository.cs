@@ -22,6 +22,7 @@ public class EfContributionRepository : IContributionRepository
         int cycle)
     {
         return await _dbContext.Contributions
+            .Include(contribution => contribution.ContributionCycle)
             .FirstOrDefaultAsync(contribution =>
                 contribution.StokvelId == stokvelId &&
                 contribution.UserId == userId &&
@@ -41,6 +42,7 @@ public class EfContributionRepository : IContributionRepository
         Guid stokvelId)
     {
         return await _dbContext.Contributions
+            .Include(contribution => contribution.ContributionCycle)
             .Where(contribution => contribution.StokvelId == stokvelId)
             .AsNoTracking()
             .ToListAsync();
@@ -51,6 +53,7 @@ public class EfContributionRepository : IContributionRepository
         ContributionPageQuery query)
     {
         IQueryable<Contribution> contributions = _dbContext.Contributions
+            .Include(contribution => contribution.ContributionCycle)
             .AsNoTracking()
             .Where(contribution =>
                 contribution.StokvelId == stokvelId &&

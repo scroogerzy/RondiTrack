@@ -44,7 +44,7 @@ public class ContributionCyclesController : ControllerBase
         [FromQuery] int? pageSize,
         [FromQuery] string? pageToken,
         [FromQuery] string sortBy = "periodNumber",
-        [FromQuery] string sortDirection = "asc")
+        [FromQuery] string sortDirection = "desc")
     {
         const int defaultPageSize = 20;
         const int maximumPageSize = 100;

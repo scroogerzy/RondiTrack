@@ -65,5 +65,6 @@ public sealed class CyclePaginationTests
             $"/api/v1/stokvels/{stokvel.Id}/cycles");
         Assert.NotNull(defaultPage);
         Assert.Equal(20, defaultPage.PageSize);
+        Assert.Equal(2, defaultPage.Items[0].PeriodNumber); // newest first by default
     }
 }

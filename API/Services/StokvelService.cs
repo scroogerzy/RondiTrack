@@ -20,6 +20,7 @@ public class StokvelService : IStokvelService
     private readonly IStokvelRepository _stokvelRepository;
     private readonly IUserRepository _userRepository;
     private readonly IContributionRepository _contributionRepository;
+    private readonly IContributionCycleRepository _cycleRepository;
     private readonly IIdempotencyStore _idempotencyStore;
     private readonly IStokvelMemberRepository _memberRepository;
 
@@ -27,12 +28,14 @@ public class StokvelService : IStokvelService
         IStokvelRepository stokvelRepository,
         IUserRepository userRepository,
         IContributionRepository contributionRepository,
+        IContributionCycleRepository cycleRepository,
         IIdempotencyStore idempotencyStore,
         IStokvelMemberRepository memberRepository)
     {
         _stokvelRepository = stokvelRepository;
         _userRepository = userRepository;
         _contributionRepository = contributionRepository;
+        _cycleRepository = cycleRepository;
         _idempotencyStore = idempotencyStore;
         _memberRepository = memberRepository;
     }
@@ -198,6 +201,13 @@ public class StokvelService : IStokvelService
                 request.Cycle);
         }
 
+        var cycle = await _cycleRepository.GetByStokvelAndPeriodAsync(
+            stokvelId, request.Cycle);
+        if (cycle is null)
+        {
+            return new RecordContributionResult.InvalidCycle(request.Cycle);
+        }
+
         // Reserve the key before attempting to store the contribution.
         var reserved =
             await _idempotencyStore.TryReserveAsync(idempotencyKey);
@@ -227,7 +237,7 @@ public class StokvelService : IStokvelService
 
         await _contributionRepository.AddAsync(contribution);
 
-        var response = contribution.ToResponse();
+        var response = contribution.ToResponse(cycle.Id);
 
         await _idempotencyStore.SaveAsync(
             idempotencyKey,
