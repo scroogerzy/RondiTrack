@@ -8,4 +8,8 @@ public record ContributionCycleResponse(
     DateTime EndDate,
     decimal TargetAmount,
     uint Version,
-    DateTime? PayoutProcessedAtUtc);
+    DateTime? PayoutProcessedAtUtc,
+    DateTime? ClosedAtUtc,
+    string Status,
+    long TotalCollectedCents,
+    long AmountDueCents);

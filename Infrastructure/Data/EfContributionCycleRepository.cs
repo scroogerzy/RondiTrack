@@ -22,6 +22,7 @@ public class EfContributionCycleRepository
         GetByStokvelAsync(Guid stokvelId)
     {
         return await _dbContext.ContributionCycles
+            .Include(cycle => cycle.Contributions)
             .Where(c => c.StokvelId == stokvelId)
             .AsNoTracking()
             .ToListAsync();
@@ -31,6 +32,7 @@ public class EfContributionCycleRepository
         GetByIdAsync(Guid id)
     {
         return await _dbContext.ContributionCycles
+            .Include(cycle => cycle.Contributions)
             .FirstOrDefaultAsync(c => c.Id == id);
     }
 
@@ -85,6 +87,7 @@ public class EfContributionCycleRepository
         ContributionCyclePageQuery query)
     {
         IQueryable<ContributionCycle> cycles = _dbContext.ContributionCycles
+            .Include(cycle => cycle.Contributions)
             .AsNoTracking()
             .Where(cycle => cycle.StokvelId == stokvelId);
 

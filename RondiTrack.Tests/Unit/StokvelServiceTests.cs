@@ -26,6 +26,7 @@ public class StokvelServiceTests
         var stokvelRepository = new InMemoryStokvelRepository();
         var userRepository = new InMemoryUserRepository();
         var contributionRepository = new InMemoryContributionRepository();
+        var cycleRepository = new InMemoryContributionCycleRepository();
         var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
         var memberRepository = new InMemoryStokvelMemberRepository();
 
@@ -47,6 +48,7 @@ public class StokvelServiceTests
             stokvelRepository,
             userRepository,
             contributionRepository,
+            cycleRepository,
             idempotencyStore,
             memberRepository);
 
@@ -66,6 +68,7 @@ public class StokvelServiceTests
         var stokvelRepository = new InMemoryStokvelRepository();
         var userRepository = new InMemoryUserRepository();
         var contributionRepository = new InMemoryContributionRepository();
+        var cycleRepository = new InMemoryContributionCycleRepository();
         var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
         var memberRepository = new InMemoryStokvelMemberRepository();
 
@@ -96,6 +99,7 @@ public class StokvelServiceTests
             stokvelRepository,
             userRepository,
             contributionRepository,
+            cycleRepository,
             idempotencyStore,
             memberRepository);
 
@@ -121,6 +125,7 @@ public class StokvelServiceTests
         var stokvelRepository = new InMemoryStokvelRepository();
         var userRepository = new InMemoryUserRepository();
         var contributionRepository = new InMemoryContributionRepository();
+        var cycleRepository = new InMemoryContributionCycleRepository();
         var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
         var memberRepository = new InMemoryStokvelMemberRepository();
 
@@ -129,6 +134,12 @@ public class StokvelServiceTests
 
         await stokvelRepository.AddAsync(stokvel);
         await userRepository.AddAsync(user);
+
+        // The contribution response must include the stable database cycle ID.
+        await cycleRepository.AddAsync(new ContributionCycle(
+            stokvel.Id, 1, DateTime.UtcNow.Date, DateTime.UtcNow.Date.AddMonths(1), 1500m));
+        await cycleRepository.AddAsync(new ContributionCycle(
+            stokvel.Id, 2, DateTime.UtcNow.Date.AddMonths(1), DateTime.UtcNow.Date.AddMonths(2), 1500m));
 
         // Seed the membership required by the contribution service.
         await memberRepository.AddAsync(
@@ -142,6 +153,7 @@ public class StokvelServiceTests
             stokvelRepository,
             userRepository,
             contributionRepository,
+            cycleRepository,
             idempotencyStore,
             memberRepository);
 

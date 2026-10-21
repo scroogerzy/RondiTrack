@@ -41,6 +41,13 @@ public sealed class MeController : ControllerBase
             .OrderBy(member => member.Stokvel.Name)
             .ToListAsync(cancellationToken);
 
+        var arrearsByStokvel = await _db.ArrearRecords
+            .AsNoTracking()
+            .Where(arrear => arrear.UserId == userId)
+            .GroupBy(arrear => arrear.StokvelId)
+            .Select(group => new { StokvelId = group.Key, TotalCents = group.Sum(arrear => arrear.ShortfallCents) })
+            .ToDictionaryAsync(item => item.StokvelId, item => item.TotalCents, cancellationToken);
+
         var items = memberships.Select(member =>
         {
             var cycles = member.Stokvel.ContributionCycles
@@ -69,7 +76,8 @@ public sealed class MeController : ControllerBase
                 current?.PeriodNumber,
                 ToCents(paid),
                 ToCents(owed),
-                nextCycle is null ? null : AsUtc(nextCycle.EndDate));
+                nextCycle is null ? null : AsUtc(nextCycle.EndDate),
+                arrearsByStokvel.GetValueOrDefault(member.StokvelId));
         }).ToArray();
 
         return Ok(new HomeResponse(items));

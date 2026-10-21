@@ -13,4 +13,5 @@ public sealed record StokvelHomeItem(
     int? CurrentCycle,
     long AmountPaidThisCycleCents,
     long AmountOwedCents,
-    DateTime? NextPayoutDateUtc);
+    DateTime? NextPayoutDateUtc,
+    long ArrearsCents);

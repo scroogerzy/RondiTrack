@@ -1520,3 +1520,9 @@ the workflow has completed.
 - Capture genuine image size, build timing, CI run links, and test evidence;
   do not report unmeasured values as results.
 
+
+---
+
+# Assignment 7.2 — Responsive stokvel view
+
+The frontend implementation and its Assignment 7.2 notes are in [`web/README.md`](web/README.md). Backend changes add status and totals to cycle responses, a required cycle ID to each contribution response, caller arrears to `/api/v1/me/home`, seed scenarios for Open/Closed/PaidOut cycles, and integration coverage in `RondiTrack.Tests/Integration/Assignment72BackendTests.cs`. The frontend README records the design choices, SA time handling, contrast calculations, test commands, and environment-dependent evidence that still needs to be captured rather than claimed without running it.
