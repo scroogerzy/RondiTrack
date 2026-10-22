@@ -131,8 +131,11 @@ describe('session refresh', () => {
       .rejects.toThrow(/session has ended/i)
 
     expect(fetchMock).toHaveBeenCalledTimes(1)
-    const firstRequest = fetchMock.mock.calls[0][0] as Request
-    expect(firstRequest.url).toContain('/auth/refresh')
+    const firstInput = fetchMock.mock.calls[0][0]
+    const firstUrl = firstInput instanceof Request
+      ? firstInput.url
+      : new URL(firstInput.toString(), API).toString()
+    expect(firstUrl).toContain('/api/v1/auth/refresh')
   })
 
   it('preserves a POST body when retrying after 401', async () => {
