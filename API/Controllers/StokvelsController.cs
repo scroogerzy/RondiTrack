@@ -19,8 +19,6 @@ namespace RondiTrack.Controllers;
 /// <summary>
 /// Manages stokvels, memberships, and contribution recording.
 /// </summary>
-[ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
-[ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
 [Route(ApiRoutes.Stokvels)]
 public class StokvelsController : ControllerBase
@@ -85,6 +83,8 @@ public class StokvelsController : ControllerBase
     /// <summary>
     /// Creates and persists a stokvel.
     /// </summary>
+    [ProducesResponseType(typeof(StokvelResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [HttpPost]
     public async Task<ActionResult<StokvelResponse>>
         CreateStokvelAsync(CreateStokvelRequest request)

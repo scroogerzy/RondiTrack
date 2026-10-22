@@ -12,8 +12,6 @@ namespace RondiTrack.Controllers;
 /// </summary>
 /// <response code="201">User created.</response>
 /// <response code="400">Validation failed.</response>
-[ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
-[ProducesResponseType(StatusCodes.Status400BadRequest)]
 [ApiController]
 [Route(ApiRoutes.Users)]
 public class UsersController : ControllerBase
@@ -52,6 +50,8 @@ public class UsersController : ControllerBase
         return Ok(user.ToResponse());
     }
 
+    [ProducesResponseType(typeof(UserResponse), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [HttpPost]
     public async Task<ActionResult<UserResponse>> CreateUserAsync(
         CreateUserRequest request)
