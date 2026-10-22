@@ -10,9 +10,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -b",
     "test": "vitest run",
-    "generate:api": "openapi-typescript https://localhost:7084/openapi/v1.json -o src/api/schema.d.ts",
+    "generate:api": "openapi-typescript \"${OPENAPI_SCHEMA_URL:-http://localhost:5076/openapi/v1.json}\" -o src/api/schema.d.ts",
     "audit:production": "npm audit --omit=dev",
-    "api:types": "openapi-typescript https://localhost:7084/openapi/v1.json -o src/api/schema.d.ts"
+    "api:types": "openapi-typescript \"${OPENAPI_SCHEMA_URL:-http://localhost:5076/openapi/v1.json}\" -o src/api/schema.d.ts"
   },
   "dependencies": {
     "@tailwindcss/vite": "^4.3.3",
