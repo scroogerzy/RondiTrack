@@ -55,3 +55,35 @@ The UI currently uses clearly labelled anonymised fixtures rather than making un
 ## Remaining evidence to capture before hand-in
 
 This package contains the code and pure tests, but the following environment-dependent evidence has not been fabricated: actual browser screenshots at 360px in Light and Dark with all groups expanded; the StrictMode console comparison; a newly generated lockfile; and real `npm audit` output. Capture these after installing dependencies on a connected machine, then record the actual command results. Keep the screenshots and output in this README or its linked evidence folder.
+
+## Assignment 7.3 — Live RondiTrack Data
+
+### Frontend environment
+
+Configure the frontend API base URL with `VITE_API_BASE_URL`. Use the HTTPS URL configured by the API launch settings, for example:
+
+```env
+VITE_API_BASE_URL=https://localhost:7084
+```
+
+### API contract checks
+
+Before completing the frontend integration, verify:
+
+- CORS allows `http://localhost:3000`, credentials, and exposes `Retry-After`.
+- Refresh cookies are HttpOnly, rotated, and scoped to `/api/v1/auth`.
+- `/api/v1/me` and `/api/v1/me/home` return the expected member data and roles.
+- Pagination returns an empty string when there is no next-page token.
+- Concurrent refresh requests behave correctly when refresh cookies rotate.
+
+### Authentication and data handling
+
+- Keep access tokens in memory only; never store them in local or session storage.
+- Share a single refresh request across concurrent requests.
+- Scope stokvel-related query keys by stokvel ID.
+- Do not retain previous stokvel data while switching selections.
+- Handle loading, error, empty, and populated states.
+
+### Verification evidence
+
+Record the actual results after running API type generation, authentication tests, frontend tests, lint, type checking, and production build. Include evidence for concurrent refresh handling and stokvel switching.

@@ -78,7 +78,6 @@ export function getDueCountdown(dueDate: string, now: Date): Countdown {
 
 /** South Africa is UTC+02:00 all year, so midnight is 22:00Z. */
 export function millisecondsUntilNextSaMidnight(now: Date): number {
-  const next = new Date(now)
   const johannesburgHour = Number(new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, hour: '2-digit', hourCycle: 'h23' }).format(now))
   const johannesburgMinute = Number(new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, minute: '2-digit' }).format(now))
   const johannesburgSecond = Number(new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, second: '2-digit' }).format(now))

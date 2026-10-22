@@ -14,7 +14,14 @@ export function ContributionList({ cycles, contributions }: { cycles: CycleView[
   const openCycleId = cycles.find((cycle) => cycle.status === 'Open')?.id
   const [expandedIds, setExpandedIds] = useState<Set<string>>(() => new Set(openCycleId ? [openCycleId] : []))
   const allExpanded = groups.length > 0 && groups.every((group) => expandedIds.has(group.cycle?.id ?? 'unknown'))
-  function toggle(id: string) { setExpandedIds((current) => { const next = new Set(current); next.has(id) ? next.delete(id) : next.add(id); return next }) }
+  function toggle(id: string) {
+    setExpandedIds((current) => {
+      const next = new Set(current)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
   function toggleAll() { setExpandedIds(allExpanded ? new Set() : new Set(groups.map((group) => group.cycle?.id ?? 'unknown'))) }
   return <div className="space-y-3">
     <div className="flex items-center justify-between gap-3"><p className="text-sm text-muted-foreground">Cycles · newest first</p><Button variant="outline" className="button button-outline" onClick={toggleAll}>{allExpanded ? 'Collapse all' : 'Expand all'}</Button></div>
