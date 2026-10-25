@@ -7,7 +7,7 @@ using RondiTrack.DTOs.Contributions;
 using RondiTrack.DTOs.Me;
 using RondiTrack.Infrastructure.Data;
 using RondiTrack.Tests.TestSupport;
-
+using System.Linq;
 namespace RondiTrack.Tests.Integration;
 
 [Collection("Postgres collection")]
@@ -58,7 +58,7 @@ public sealed class Assignment72BackendTests
         Assert.Equal(HttpStatusCode.OK, homeResponse.StatusCode);
         var home = await homeResponse.Content.ReadFromJsonAsync<HomeResponse>();
         Assert.NotNull(home);
-        var ownItem = Assert.Single(home.Stokvels.Where(item => item.StokvelId == stokvelId));
+        var ownItem = Assert.Single(home.Stokvels, item => item.StokvelId == stokvelId);
         Assert.Equal(50_000L, ownItem.ArrearsCents);
     }
 }
