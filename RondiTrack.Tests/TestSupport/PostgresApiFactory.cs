@@ -29,6 +29,7 @@ public sealed class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncL
         builder.UseEnvironment("Development");
         builder.UseSetting("ConnectionStrings:RondiTrack", _container.GetConnectionString());
         builder.UseSetting("Jwt:SigningKey", TestSigningKey);
+        builder.UseSetting("RateLimiting:Login:PermitLimit", "1000");
     }
 
     public new HttpClient CreateClient()
