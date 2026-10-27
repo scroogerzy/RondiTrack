@@ -1663,6 +1663,7 @@ The following results were captured in the Codespaces terminal on 27 October 202
 - Lint: `npm run lint` — completed with no errors and one React Compiler warning, described under Known gaps.
 - Backend tests: `dotnet test RondiTrack.sln` — **40 passed, 0 failed, 0 skipped**.
 - Idempotency mutation proof: temporarily breaking retry key reuse caused 2 of the 6 targeted tests to fail. After restoring the helper, all 6 targeted tests passed.
+- Repository cleanup: removed the unreferenced generated project dump `COMPLETE_PROJECT.txt`, the unused React/Vite starter SVGs, and `web/src/data/sample.ts`. Historical assignment evidence and scripts were retained.
 
 These results reflect the captured test output. They do not claim that the six API contract scenarios were exercised against a running deployment. The screen recording is also still outstanding.
 
