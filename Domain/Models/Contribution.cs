@@ -64,9 +64,9 @@ public class Contribution
                 "Contribution cycle must be greater than zero.",
                 nameof(cycle));
 
-        if (amount != 500m)
+        if (amount <= 0m || decimal.Round(amount, 2, MidpointRounding.AwayFromZero) != amount)
             throw new ArgumentException(
-                "Contribution amount must be exactly R500.",
+                "Contribution amount must be positive and have no more than two decimal places.",
                 nameof(amount));
 
         Id = Guid.NewGuid();

@@ -371,12 +371,17 @@ public class StokvelsController : ControllerBase
 
             RecordContributionResult.InvalidAmount invalidAmount =>
                 ProblemResponses.UnprocessableEntity(
-                    $"Contribution amount '{invalidAmount.Amount}' is invalid. The contribution must be exactly R500.",
+                    $"Contribution amount '{invalidAmount.Amount}' is invalid. Use a positive amount with no more than two decimal places.",
                     HttpContext.Request.Path),
 
             RecordContributionResult.InvalidCycle invalidCycle =>
                 ProblemResponses.UnprocessableEntity(
                     $"Contribution cycle '{invalidCycle.Cycle}' is invalid. The cycle must be greater than zero.",
+                    HttpContext.Request.Path),
+
+            RecordContributionResult.ClosedCycle closedCycle =>
+                ProblemResponses.Conflict(
+                    $"Contribution cycle '{closedCycle.Cycle}' is closed or its payout has been processed.",
                     HttpContext.Request.Path),
 
             _ =>

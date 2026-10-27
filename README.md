@@ -946,7 +946,7 @@ The paged list endpoints selected for this assignment are:
 
 Both use keyset pagination rather than exposing an offset. The default page size is 20 and the server maximum is 100. A negative page size returns a 400 Problem Details response; a page size above 100 is reduced to 100. The response contains `items`, `nextPageToken`, and `pageSize`; `nextPageToken` is empty when the query has no more results. The API does not return a total count because obtaining a count can add work to a list query and clients can continue until the token is empty.
 
-The contribution token is bound to the stokvel, cycle, user filter, sort field, and sort direction. Reusing it with different filters or sorting returns 400. The contribution filter allow-list contains `userId`. Amount filters are deliberately not exposed because the current domain constructor only permits contributions of exactly R500, so filtering by an amount range would add a misleading API option. Contribution sorting is allow-listed as `recordedAt`, with `Id` as a unique tiebreaker. Amount sorting is deliberately refused for the same domain reason: every valid contribution has the same amount. Cycle sorting is allow-listed as `periodNumber`, with `Id` as a tiebreaker. Unknown query parameters and unsupported sort fields return 400. The token is an encoded continuation contract; clients must treat it as opaque and return it unchanged.
+The contribution token is bound to the stokvel, cycle, user filter, sort field, and sort direction. Reusing it with different filters or sorting returns 400. The contribution filter allow-list contains `userId`; amount filters are not exposed by this query contract. Contribution sorting is allow-listed as `recordedAt`, with `Id` as a unique tiebreaker. Amount sorting is not supported because the API deliberately restricts the sort allow-list to recorded time. Cycle sorting is allow-listed as `periodNumber`, with `Id` as a tiebreaker. Unknown query parameters and unsupported sort fields return 400. The token is an encoded continuation contract; clients must treat it as opaque and return it unchanged.
 
 Keyset pagination avoids shifting later pages merely because a new contribution is inserted ahead of the current cursor. A record inserted before the cursor will not be repeated on a later page; records inserted after the cursor may be encountered as the client continues. This behaviour is preferable to offset paging for a changing contribution list. The same contract works for small and large cycles, while the performance index must be selected from measured SQL plans rather than assumed in advance.
 
@@ -1017,7 +1017,7 @@ The integration tests `ContributionPaginationTests.Walking_pages_returns_each_co
 - Default page size: `20`; server maximum: `100`. A larger value is clamped, `0` uses the default, and a negative value returns `400` Problem Details.
 - Query allow-list: `pageSize`, `pageToken`, `sortBy`, `sortDirection`, `userId`. Unknown parameters, malformed tokens, unsupported sort fields, and a token reused with a different cycle/filter/sort return `400` Problem Details.
 - Sort allow-list: `recordedAt`, in `asc` or `desc` direction. `Id` is the deterministic unique tiebreaker and is carried in the keyset cursor.
-- Filter allow-list: optional `userId` within the route's stokvel and cycle. `amount` is deliberately not sortable/filterable: the existing domain rule fixes every contribution at R500, so sorting by amount adds no useful ordering.
+- Filter allow-list: optional `userId` within the route's stokvel and cycle. Amount filters and amount sorting are not exposed by this API; `recordedAt` is the supported contribution sort field.
 - Paging strategy: keyset/cursor paging. A continuation token records the last `(RecordedAt, Id)` position and is bound to the route, filter and sort. A new contribution inserted ahead of the cursor does not shift the rows represented by the next page, unlike offset paging.
 - End of results: fetch `pageSize + 1`; return a non-empty next token only if the extra row proves another page exists. The next token is `""` exactly when no additional page exists.
 - Total count: omitted to avoid a separate potentially expensive `COUNT(*)` query on every page. Clients can walk pages until `nextPageToken` is empty.
@@ -1526,3 +1526,138 @@ the workflow has completed.
 # Assignment 7.2 — Responsive stokvel view
 
 The frontend implementation and its Assignment 7.2 notes are in [`web/README.md`](web/README.md). Backend changes add status and totals to cycle responses, a required cycle ID to each contribution response, caller arrears to `/api/v1/me/home`, seed scenarios for Open/Closed/PaidOut cycles, and integration coverage in `RondiTrack.Tests/Integration/Assignment72BackendTests.cs`. The frontend README records the design choices, SA time handling, contrast calculations, test commands, and environment-dependent evidence that still needs to be captured rather than claimed without running it.
+
+# Assignment 7.4 — Record a Contribution
+
+## Idempotency contract
+
+The Assignment 7.4 endpoint is `POST /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions`. Its request body contains `userId` and numeric `amountInCents`; the amount is converted from cents to a decimal only inside the API/domain boundary. The `Idempotency-Key` is described in the OpenAPI endpoint and is passed through the typed `openapi-fetch` client and `authFetch`.
+
+Contract from the checked-in API implementation (the running API still needs to be exercised before claiming runtime evidence):
+
+1. **Same key, same body:** returns HTTP 201 with the stored contribution body; `Idempotency-Replayed` is `true` on replay and `false` on the first recording.
+2. **Same key, changed amount or member:** returns HTTP 409 because the stored request hash differs.
+3. **New key for an already-contributed member/cycle:** returns HTTP 409 with detail explaining that the member already contributed in that cycle.
+4. **Rate limit:** the rate limiter returns HTTP 429 with `Retry-After` before the controller reserves the idempotency key. Retry the same key after the wait; the rejected rate-limited attempt has not consumed it.
+5. **Missing key:** returns HTTP 400. The new cycle endpoint declares `Idempotency-Key` as a header parameter in the typed OpenAPI schema.
+6. **CORS preflight:** `API/Program.cs` allows the configured `http://localhost:3000` origin, credentials, `POST`/`OPTIONS`, and the `Idempotency-Key` request header. It exposes `Retry-After`, `X-Correlation-ID`, and `Idempotency-Replayed` to the browser.
+
+The form submits for the signed-in member unless the stokvel role from `/api/v1/me/home` is Treasurer. Treasurers get a picker populated by the same-stokvel members endpoint. The server independently authorizes the target against the stokvel membership, so hiding the picker is not the security boundary. The endpoint rejects a closed or paid-out cycle with HTTP 409; the service checks the idempotency cache first so an already-committed intent can still replay after the cycle closes.
+
+The API contract above is based on the current source code, not a claim that curl/Scalar against the running PostgreSQL-backed deployment was executed. Capture the six live responses/preflight in the submission environment if the lecturer expects runtime evidence.
+
+## Idempotency proof
+
+The six MSW tests use MSW 2 to intercept only the HTTP network. They call the real typed API client, real `authFetch`, and the real intent-key helper with `onUnhandledRequest: 'error'`:
+
+- network failure followed by a retry retains the same non-null key;
+- successful next contribution receives a new key;
+- 429 retains the key and exposes `Retry-After`;
+- changing the amount after failure creates a new key and sends the changed integer-cent amount;
+- 401 refresh retries with the same key and the refreshed `Authorization` token;
+- the body sends `150.50` as numeric `amountInCents: 15050`.
+
+**Deliberate-failure proof:** the single-batch script temporarily changes the key helper so a retry gets a fresh key, runs the targeted MSW suite, restores the helper, and runs the suite again. It captures both real command outputs below; the working helper is restored before build, lint, full tests, and commit.
+
+<!-- ASSIGNMENT_7_4_PROOF_START -->
+### Intentionally broken key reuse (real captured output)
+
+Command: `CI=1 npm test -- src/contributions/recordContribution.test.ts` — exit code `1` (nonzero expected).
+
+```text
+> ronditrack-web@0.0.0 test
+> vitest run src/contributions/recordContribution.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/workspaces/RondiTrack/web[39m
+
+ [31m❯[39m src/contributions/recordContribution.test.ts [2m([22m[2m6 tests[22m[2m | [22m[31m2 failed[39m[2m)[22m[32m 69[2mms[22m[39m
+[31m     [31m×[31m retries a network failure with the same non-null key[39m[32m 33[2mms[22m[39m
+     [32m✓[39m uses a new key for the next contribution after success[32m 7[2mms[22m[39m
+[31m     [31m×[31m keeps the key after a 429 and exposes Retry-After[39m[32m 8[2mms[22m[39m
+     [32m✓[39m starts a new intent and sends the new cents when the amount changes after failure[32m 7[2mms[22m[39m
+     [32m✓[39m keeps the key across a 401 refresh and retries with the refreshed Authorization token[32m 5[2mms[22m[39m
+     [32m✓[39m sends an amount typed as 150.50 across the trip as numeric 15050 cents[32m 3[2mms[22m[39m
+
+[31m⎯⎯⎯⎯⎯⎯⎯[39m[1m[41m Failed Tests 2 [49m[22m[31m⎯⎯⎯⎯⎯⎯⎯[39m
+
+[41m[1m FAIL [22m[49m src/contributions/recordContribution.test.ts[2m > [22mcontribution idempotency through the real API client and authFetch[2m > [22mretries a network failure with the same non-null key
+[31m[1mAssertionError[22m: expected '18344920-f20c-4c0c-9e5c-9857aa17ca64' to be '98b44981-1fdf-43f6-80a4-144faae29592' // Object.is equality[39m
+
+Expected: [32m"98b44981-1fdf-43f6-80a4-144faae29592"[39m
+Received: [31m"18344920-f20c-4c0c-9e5c-9857aa17ca64"[39m
+
+[36m [2m❯[22m src/contributions/recordContribution.test.ts:[2m56:29[22m[39m
+    [90m 54|[39m     [35mawait[39m [34mexpect[39m([34mrecordContribution[39m(intent))[33m.[39mrejects[33m.[39m[34mtoThrow[39m()
+    [90m 55|[39m     [35mconst[39m retryIntent [33m=[39m [34mgetContributionIntent[39m(intent[33m,[39m input)
+    [90m 56|[39m     [34mexpect[39m(retryIntent[33m.[39mkey)[33m.[39m[34mtoBe[39m(intent[33m.[39mkey)
+    [90m   |[39m                             [31m^[39m
+    [90m 57|[39m     await expect(recordContribution(retryIntent)).resolves.toMatchObje…
+    [90m 58|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯[22m[39m
+
+[41m[1m FAIL [22m[49m src/contributions/recordContribution.test.ts[2m > [22mcontribution idempotency through the real API client and authFetch[2m > [22mkeeps the key after a 429 and exposes Retry-After
+[31m[1mAssertionError[22m: expected [ …(2) ] to deeply equal [ …(2) ][39m
+
+[32m- Expected[39m
+[31m+ Received[39m
+
+[2m  [[22m
+[2m    "e1c55cbe-2e83-48dd-ac09-a155fc640ea4",[22m
+[32m-   "e1c55cbe-2e83-48dd-ac09-a155fc640ea4",[39m
+[31m+   "0c0276af-345c-420c-a33f-aee2a31af427",[39m
+[2m  ][22m
+
+[36m [2m❯[22m src/contributions/recordContribution.test.ts:[2m105:22[22m[39m
+    [90m103|[39m     [35mawait[39m [34mrecordContribution[39m(retryIntent)
+    [90m104|[39m
+    [90m105|[39m     [34mexpect[39m(keysSeen)[33m.[39m[34mtoEqual[39m([intent[33m.[39mkey[33m,[39m intent[33m.[39mkey])
+    [90m   |[39m                      [31m^[39m
+    [90m106|[39m   })
+    [90m107|[39m
+
+[31m[2m⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯[22m[39m
+
+
+[2m Test Files [22m [1m[31m1 failed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[31m2 failed[39m[22m[2m | [22m[1m[32m4 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 05:34:08
+[2m   Duration [22m 1.14s[2m (transform 118ms, setup 0ms, import 726ms, tests 69ms, environment 0ms)[22m
+```
+
+### Restored helper (real captured output)
+
+Command: `CI=1 npm test -- src/contributions/recordContribution.test.ts` — exit code `0` (zero expected).
+
+```text
+> ronditrack-web@0.0.0 test
+> vitest run src/contributions/recordContribution.test.ts
+
+
+[1m[30m[46m RUN [49m[39m[22m [36mv4.1.11 [39m[90m/workspaces/RondiTrack/web[39m
+
+ [32m✓[39m src/contributions/recordContribution.test.ts [2m([22m[2m6 tests[22m[2m)[22m[32m 62[2mms[22m[39m
+
+[2m Test Files [22m [1m[32m1 passed[39m[22m[90m (1)[39m
+[2m      Tests [22m [1m[32m6 passed[39m[22m[90m (6)[39m
+[2m   Start at [22m 05:34:10
+[2m   Duration [22m 504ms[2m (transform 109ms, setup 0ms, import 303ms, tests 62ms, environment 0ms)[22m
+```
+<!-- ASSIGNMENT_7_4_PROOF_END -->
+
+A fresh key on every request could turn a lost response into a duplicate payment attempt instead of a replay, leaving a member unsure which request recorded their money. It also prevents the backend from recognizing a retry as the same intent, so the member may see a misleading conflict after the first request actually succeeded.
+
+The key is generated only in the submit handler and lives in this form's component state, not module-level state or the React Query cache. React StrictMode may rerender the component, but rendering itself does not generate a key. On a network failure or HTTP response where the outcome may be unknown, the pending intent remains; changing member/amount creates a different intent, and success clears the intent. A browser reload loses the key, but the API's unique contribution-per-member/cycle rule rejects a new-key duplicate with 409 rather than recording a second contribution.
+
+## Optimistic or not
+
+Contribution recording is **not optimistic**. The UI waits for the server before saying “Recorded” because only the server knows the durable contribution ID, whether the cycle is still open, the new cycle total, and any updated arrears. If the frontend optimistically increased the total and the server later returned 409 (for example, the member already contributed), the member or Treasurer could act on a balance that was never committed. A meeting-ready “Recorded” message must mean the server accepted the write or replayed the already-recorded intent.
+
+## Known gaps
+
+- The legacy backend required exactly R500 per contribution. Assignment 7.4 specifies arbitrary positive amounts carried as integer cents (including the `150.50` to `15050` example), so this implementation changes that validation to accept positive amounts with at most two decimal places. Confirm this contract with the lecturer if the original fixed-R500 rule is intended to remain mandatory.
+- Run `npm run lint`, `npm run build`, and `npm test` in the target Codespace and include the actual output in the pull request. Do not report them as passing unless they pass there.
+- Run the six idempotency-contract checks (same-key replay, same-key changed body, duplicate with new key, rate limit then retry, missing header/OpenAPI, and CORS preflight) against the running API. The README answers above are source-based until that runtime evidence is captured.
+- Record the required video (two minutes or less): record a contribution; disable the network and submit; re-enable and retry while showing the same key in both requests; then record a second time and show the 409.
+- The API's idempotency store is in-memory in this repository. A process restart loses cached response bodies; the existing contribution uniqueness constraint still prevents a second contribution for the same member and cycle, but a retry after process restart may receive 409 rather than replaying the original 201.

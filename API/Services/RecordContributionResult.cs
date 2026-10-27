@@ -73,4 +73,9 @@ public abstract record RecordContributionResult
     public sealed record InvalidCycle(
         int Cycle)
         : RecordContributionResult;
+
+    /// <summary>
+    /// Indicates that the target cycle is closed or its payout has been processed.
+    /// </summary>
+    public sealed record ClosedCycle(int Cycle) : RecordContributionResult;
 }
