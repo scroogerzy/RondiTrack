@@ -290,7 +290,64 @@ export interface paths {
             };
         };
         put?: never;
-        post?: never;
+        post: {
+            parameters: {
+                query?: never;
+                header?: {
+                    "Idempotency-Key"?: string;
+                };
+                path: {
+                    stokvelId: string;
+                    cycleId: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["RecordCycleContributionRequest"];
+                    "text/json": components["schemas"]["RecordCycleContributionRequest"];
+                    "application/*+json": components["schemas"]["RecordCycleContributionRequest"];
+                };
+            };
+            responses: {
+                /** @description Created */
+                201: {
+                    headers: { [name: string]: unknown };
+                    content: {
+                        "text/plain": components["schemas"]["ContributionResponse"];
+                        "application/json": components["schemas"]["ContributionResponse"];
+                        "text/json": components["schemas"]["ContributionResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: { [name: string]: unknown };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
+                    headers: { [name: string]: unknown };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+                /** @description Unprocessable Entity */
+                422: {
+                    headers: { [name: string]: unknown };
+                    content: {
+                        "text/plain": components["schemas"]["ProblemDetails"];
+                        "application/json": components["schemas"]["ProblemDetails"];
+                        "text/json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -992,6 +1049,8 @@ export interface components {
             email: string;
         };
         HomeResponse: {
+            /** Format: uuid */
+            currentUserId: string;
             stokvels: components["schemas"]["StokvelHomeItem"][];
         };
         LoginRequest: {
@@ -1011,6 +1070,12 @@ export interface components {
             cycle: number;
             /** Format: double */
             amount: number;
+        };
+        RecordCycleContributionRequest: {
+            /** Format: uuid */
+            userId: string;
+            /** Format: int64 */
+            amountInCents: number;
         };
         RegisterRequest: {
             fullName: string;

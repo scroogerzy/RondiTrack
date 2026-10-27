@@ -8,6 +8,7 @@ import { ErrorView } from './components/ErrorView'
 import { useHome, useCycles, useContributions } from './api/queries'
 import { login, logout, onSignedOut } from './auth/session'
 import { formatCents } from './lib/money'
+import { RecordContributionForm } from './components/RecordContributionForm'
 import './App.css'
 
 export default function App() {
@@ -235,6 +236,19 @@ export default function App() {
                 </div>
               )}
             </section>
+
+            {selectedStokvel && activeCycle && (
+              <RecordContributionForm
+                key={`${effectiveStokvelId}:${activeCycle.id}`}
+                stokvelId={effectiveStokvelId}
+                cycleId={activeCycle.id}
+                cycleNumber={activeCycle.periodNumber}
+                role={selectedStokvel.role}
+                cycleStatus={activeCycle.status}
+                currentUserId={home.data.currentUserId}
+                amountOwedCents={selectedStokvel.amountOwedCents}
+              />
+            )}
 
             <section aria-labelledby="contributions-heading">
               <div className="section-heading">

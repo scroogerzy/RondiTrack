@@ -80,7 +80,7 @@ public sealed class MeController : ControllerBase
                 arrearsByStokvel.GetValueOrDefault(member.StokvelId));
         }).ToArray();
 
-        return Ok(new HomeResponse(items));
+        return Ok(new HomeResponse(userId, items));
     }
 
     private static long ToCents(decimal amount) =>

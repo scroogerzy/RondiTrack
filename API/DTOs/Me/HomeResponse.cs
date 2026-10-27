@@ -4,7 +4,7 @@ namespace RondiTrack.DTOs.Me;
 /// Minimal response for the signed-in member's home screen.
 /// Monetary values are integer cents to remain exact in JavaScript.
 /// </summary>
-public sealed record HomeResponse(IReadOnlyList<StokvelHomeItem> Stokvels);
+public sealed record HomeResponse(Guid CurrentUserId, IReadOnlyList<StokvelHomeItem> Stokvels);
 
 public sealed record StokvelHomeItem(
     Guid StokvelId,

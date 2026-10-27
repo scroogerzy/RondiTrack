@@ -13,7 +13,11 @@ public sealed class RecordContributionRequestValidator
             .WithMessage("Contribution cycle must be greater than zero.");
 
         RuleFor(x => x.Amount)
-            .Equal(500m)
-            .WithMessage("Contribution amount must be exactly R500.");
+            .GreaterThan(0m)
+            .WithMessage("Contribution amount must be greater than zero.");
+
+        RuleFor(x => x.Amount)
+            .Must(amount => decimal.Round(amount, 2, MidpointRounding.AwayFromZero) == amount)
+            .WithMessage("Contribution amount must not contain fractions of a cent.");
     }
 }

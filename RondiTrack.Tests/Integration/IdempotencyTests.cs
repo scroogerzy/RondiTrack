@@ -1,4 +1,5 @@
-﻿using RondiTrack.Tests.TestSupport;
+using System.Linq;
+using RondiTrack.Tests.TestSupport;
 
 using System.Net;
 using System.Net.Http.Json;
@@ -14,10 +15,12 @@ namespace RondiTrack.Tests.Integration;
 public class IdempotencyTests
 {
     private readonly HttpClient _client;
+    private readonly PostgresApiFactory _factory;
 
     /// Creates an HTTP client for testing the real RondiTrack API.
     public IdempotencyTests(PostgresApiFactory factory)
     {
+        _factory = factory;
         _client = factory.CreateClient();
     }
 
@@ -99,6 +102,9 @@ public class IdempotencyTests
             $"{cycleResponse.StatusCode}. " +
             $"Response body: {cycleResponseBody}");
 
+        var cycle = await cycleResponse.Content.ReadFromJsonAsync<CycleDto>();
+        Assert.NotNull(cycle);
+
         // Add the user to the stokvel.
         var memberResponse = await _client.PostAsync(
             $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}",
@@ -108,34 +114,38 @@ public class IdempotencyTests
             HttpStatusCode.NoContent,
             memberResponse.StatusCode);
 
+        // The contribution authorization policy requires the caller to be a
+        // member of this stokvel. Authenticate as the member created above.
+        using var memberClient = _factory.CreateClientForUser(user.Id);
+
         // Use one idempotency key for both identical requests.
         var key = Guid.NewGuid().ToString();
 
         var request = new
         {
-            Cycle = 1,
-            Amount = 500m
+            UserId = user.Id,
+            AmountInCents = 50000L
         };
 
         // Act: submit the first contribution request.
         using var firstRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}/contributions");
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions");
 
         firstRequest.Headers.Add("Idempotency-Key", key);
         firstRequest.Content = JsonContent.Create(request);
 
-        var firstResponse = await _client.SendAsync(firstRequest);
+        var firstResponse = await memberClient.SendAsync(firstRequest);
 
         // Act: retry with the same key and identical payload.
         using var secondRequest = new HttpRequestMessage(
             HttpMethod.Post,
-            $"/api/v1/stokvels/{stokvel.Id}/members/{user.Id}/contributions");
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions");
 
         secondRequest.Headers.Add("Idempotency-Key", key);
         secondRequest.Content = JsonContent.Create(request);
 
-        var secondResponse = await _client.SendAsync(secondRequest);
+        var secondResponse = await memberClient.SendAsync(secondRequest);
 
         // Assert: both requests should return HTTP 201 Created.
         // Include each response body if a request fails.
@@ -161,7 +171,58 @@ public class IdempotencyTests
 
         // The retry should return the same contribution representation.
         Assert.Equal(firstBody, secondBody);
+        Assert.Equal("false", firstResponse.Headers.GetValues("Idempotency-Replayed").Single());
+        Assert.Equal("true", secondResponse.Headers.GetValues("Idempotency-Replayed").Single());
+
+        // Reusing the same key for a changed amount is rejected, rather than
+        // silently replaying a success for a different payment intent.
+        using var changedRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions");
+        changedRequest.Headers.Add("Idempotency-Key", key);
+        changedRequest.Content = JsonContent.Create(new
+        {
+            UserId = user.Id,
+            AmountInCents = 25000L
+        });
+        var changedResponse = await memberClient.SendAsync(changedRequest);
+        Assert.Equal(HttpStatusCode.Conflict, changedResponse.StatusCode);
+
+        // A different key is a different intent, but the unique member/cycle
+        // rule prevents a second contribution.
+        using var duplicateRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions");
+        duplicateRequest.Headers.Add("Idempotency-Key", Guid.NewGuid().ToString());
+        duplicateRequest.Content = JsonContent.Create(request);
+        var duplicateResponse = await memberClient.SendAsync(duplicateRequest);
+        Assert.Equal(HttpStatusCode.Conflict, duplicateResponse.StatusCode);
+
+        // The key is mandatory and is documented on the new OpenAPI route.
+        using var missingKeyRequest = new HttpRequestMessage(
+            HttpMethod.Post,
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions");
+        missingKeyRequest.Content = JsonContent.Create(request);
+        var missingKeyResponse = await memberClient.SendAsync(missingKeyRequest);
+        Assert.Equal(HttpStatusCode.BadRequest, missingKeyResponse.StatusCode);
+
+        // Exercise the browser's credentialed CORS preflight for the idempotency header.
+        using var preflight = new HttpRequestMessage(
+            HttpMethod.Options,
+            $"/api/v1/stokvels/{stokvel.Id}/cycles/{cycle.Id}/contributions");
+        preflight.Headers.Add("Origin", "http://localhost:3000");
+        preflight.Headers.Add("Access-Control-Request-Method", "POST");
+        preflight.Headers.Add("Access-Control-Request-Headers", "authorization,content-type,idempotency-key");
+        var preflightResponse = await memberClient.SendAsync(preflight);
+        Assert.True(
+            preflightResponse.StatusCode == HttpStatusCode.NoContent || preflightResponse.StatusCode == HttpStatusCode.OK,
+            $"CORS preflight failed: {(int)preflightResponse.StatusCode} {preflightResponse.StatusCode}");
+        Assert.Equal("http://localhost:3000", preflightResponse.Headers.GetValues("Access-Control-Allow-Origin").Single());
+        Assert.Equal("true", preflightResponse.Headers.GetValues("Access-Control-Allow-Credentials").Single());
+        Assert.Contains("idempotency-key", string.Join(",", preflightResponse.Headers.GetValues("Access-Control-Allow-Headers")), StringComparison.OrdinalIgnoreCase);
     }
+
+    private sealed record CycleDto(Guid Id);
 
     /// DTO used to read the user creation response.
     /// Only the user ID is needed by this test.

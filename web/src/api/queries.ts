@@ -95,6 +95,19 @@ export function useCycles(stokvelId: string) {
   })
 }
 
+
+export function useStokvelMembers(stokvelId: string, enabled = true) {
+  return useQuery({
+    queryKey: ['stokvels', stokvelId, 'members'] as const,
+    enabled: Boolean(stokvelId) && enabled,
+    queryFn: async () => unwrap(await api.GET(
+      '/api/v1/stokvels/{stokvelId}/members',
+      { params: { path: { stokvelId } } },
+    )),
+    retry: retryPolicy,
+  })
+}
+
 export function useContributions(stokvelId: string, cycleId: string) {
   return useInfiniteQuery({
     queryKey: queryKeys.contributions(stokvelId, cycleId),

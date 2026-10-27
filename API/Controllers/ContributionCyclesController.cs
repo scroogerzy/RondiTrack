@@ -1,6 +1,8 @@
 using RondiTrack.Auth;
+using RondiTrack.Services;
 using RondiTrack.Common;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.RateLimiting;
 using RondiTrack.Domain.Repositories;
 using RondiTrack.Infrastructure.Data;
@@ -26,14 +28,21 @@ public class ContributionCyclesController : ControllerBase
     private readonly IContributionRepository
         _contributionRepository;
 
+    private readonly IStokvelService _stokvelService;
+    private readonly IAuthorizationService _authorizationService;
+
     public ContributionCyclesController(
         IContributionCycleRepository cycleRepository,
         IStokvelRepository stokvelRepository,
-        IContributionRepository contributionRepository)
+        IContributionRepository contributionRepository,
+        IStokvelService stokvelService,
+        IAuthorizationService authorizationService)
     {
         _cycleRepository = cycleRepository;
         _stokvelRepository = stokvelRepository;
         _contributionRepository = contributionRepository;
+        _stokvelService = stokvelService;
+        _authorizationService = authorizationService;
     }
 
     /// Returns contribution cycles in deterministic, keyset-paginated order.
@@ -145,6 +154,96 @@ public class ContributionCyclesController : ControllerBase
     }
 
     /// <summary>
+    /// Records a contribution in a specific open cycle. The amount is expressed
+    /// as integer cents and the Idempotency-Key identifies the payment intent.
+    /// </summary>
+    [Authorize]
+    [EnableRateLimiting(RateLimitPolicies.Contributions)]
+    [HttpPost("{cycleId:guid}/contributions")]
+    [ProducesResponseType(typeof(ContributionResponse), StatusCodes.Status201Created)]
+    public async Task<ActionResult<ContributionResponse>> RecordContributionForCycleAsync(
+        Guid stokvelId,
+        Guid cycleId,
+        [FromHeader(Name = "Idempotency-Key")] string? idempotencyKey,
+        [FromBody] RecordCycleContributionRequest request)
+    {
+        if (string.IsNullOrWhiteSpace(idempotencyKey))
+        {
+            return ProblemResponses.BadRequest(
+                "The Idempotency-Key header is required.",
+                HttpContext.Request.Path);
+        }
+
+        if (request.UserId == Guid.Empty || request.AmountInCents <= 0)
+        {
+            return ProblemResponses.UnprocessableEntity(
+                "A member and a positive amount in integer cents are required.",
+                HttpContext.Request.Path);
+        }
+
+        var authorization = await _authorizationService.AuthorizeAsync(
+            User,
+            new ContributionTargetResource(stokvelId, request.UserId),
+            Policies.RecordContribution);
+        if (!authorization.Succeeded) return Forbid();
+
+        var cycle = await _cycleRepository.GetByIdAsync(cycleId);
+        if (cycle is null || cycle.StokvelId != stokvelId)
+        {
+            return ProblemResponses.NotFound(
+                $"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.",
+                HttpContext.Request.Path);
+        }
+
+        // The service checks the idempotency cache before the closed-cycle guard.
+        // That preserves replay success if the first request committed before the
+        // connection dropped and the cycle was then closed.
+        var result = await _stokvelService.RecordContributionAsync(
+            stokvelId,
+            request.UserId,
+            idempotencyKey,
+            new RecordContributionRequest(cycle.PeriodNumber, request.AmountInCents / 100m));
+
+        Response.Headers["Idempotency-Replayed"] =
+            result is RecordContributionResult.ReplayedFromCache ? "true" : "false";
+
+        return result switch
+        {
+            RecordContributionResult.Recorded recorded =>
+                StatusCode(StatusCodes.Status201Created, recorded.Contribution),
+            RecordContributionResult.ReplayedFromCache replayed =>
+                StatusCode(StatusCodes.Status201Created, replayed.Contribution),
+            RecordContributionResult.KeyConflict =>
+                ProblemResponses.Conflict(
+                    "The Idempotency-Key has already been used with a different request or is currently being processed.",
+                    HttpContext.Request.Path),
+            RecordContributionResult.StokvelNotFound =>
+                ProblemResponses.NotFound(
+                    $"Stokvel '{stokvelId}' was not found.", HttpContext.Request.Path),
+            RecordContributionResult.UserNotFound =>
+                ProblemResponses.NotFound(
+                    $"User '{request.UserId}' was not found.", HttpContext.Request.Path),
+            RecordContributionResult.UserNotMember =>
+                ProblemResponses.Conflict(
+                    $"User '{request.UserId}' is not a member of stokvel '{stokvelId}'.", HttpContext.Request.Path),
+            RecordContributionResult.DuplicateContribution duplicate =>
+                ProblemResponses.Conflict(
+                    $"User '{duplicate.UserId}' has already made a contribution for cycle {duplicate.Cycle}.", HttpContext.Request.Path),
+            RecordContributionResult.InvalidAmount =>
+                ProblemResponses.UnprocessableEntity(
+                    "The amount must be positive and no more than two decimal places.", HttpContext.Request.Path),
+            RecordContributionResult.InvalidCycle invalidCycle =>
+                ProblemResponses.UnprocessableEntity(
+                    $"Contribution cycle '{invalidCycle.Cycle}' is invalid.", HttpContext.Request.Path),
+            RecordContributionResult.ClosedCycle closedCycle =>
+                ProblemResponses.Conflict(
+                    $"Contribution cycle '{closedCycle.Cycle}' is closed or its payout has been processed.", HttpContext.Request.Path),
+            _ => ProblemResponses.BadRequest(
+                "The contribution could not be recorded.", HttpContext.Request.Path)
+        };
+    }
+
+    /// <summary>
     /// Returns a bounded, keyset-paginated page of contributions for a cycle.
     /// The page token is bound to the cycle, filters and sort order that created it.
     /// </summary>
@@ -191,7 +290,7 @@ public class ContributionCyclesController : ControllerBase
         if (!string.Equals(sortBy, "recordedAt", StringComparison.OrdinalIgnoreCase))
         {
             return ProblemResponses.BadRequest(
-                "sortBy must be 'recordedAt'. Amount sorting is not exposed because the domain model fixes contributions at R500.",
+                "sortBy must be 'recordedAt'. Amount sorting is not exposed; contributions are ordered by recorded time and stable ID.",
                 HttpContext.Request.Path);
         }
         sortBy = "recordedAt";

@@ -180,11 +180,12 @@ public class StokvelService : IStokvelService
                 request.Cycle);
         }
 
-        // Preserve the existing business rule: contributions are R500.
-        if (request.Amount != 500m)
+        // Amounts are represented as integer cents at the API boundary.
+        // Keep the domain amount positive and limited to whole cents.
+        if (request.Amount <= 0m ||
+            decimal.Round(request.Amount, 2, MidpointRounding.AwayFromZero) != request.Amount)
         {
-            return new RecordContributionResult.InvalidAmount(
-                request.Amount);
+            return new RecordContributionResult.InvalidAmount(request.Amount);
         }
 
         var existingContribution =
@@ -206,6 +207,13 @@ public class StokvelService : IStokvelService
         if (cycle is null)
         {
             return new RecordContributionResult.InvalidCycle(request.Cycle);
+        }
+
+        // A closed cycle rejects new intents, but the same key is replayed
+        // above before this check so an already-recorded intent remains safe.
+        if (cycle.ClosedAtUtc is not null || cycle.PayoutProcessedAtUtc is not null)
+        {
+            return new RecordContributionResult.ClosedCycle(request.Cycle);
         }
 
         // Reserve the key before attempting to store the contribution.
