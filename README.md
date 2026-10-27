@@ -1654,10 +1654,22 @@ The key is generated only in the submit handler and lives in this form's compone
 
 Contribution recording is **not optimistic**. The UI waits for the server before saying “Recorded” because only the server knows the durable contribution ID, whether the cycle is still open, the new cycle total, and any updated arrears. If the frontend optimistically increased the total and the server later returned 409 (for example, the member already contributed), the member or Treasurer could act on a balance that was never committed. A meeting-ready “Recorded” message must mean the server accepted the write or replayed the already-recorded intent.
 
+## Verification results
+
+The following results were captured in the Codespaces terminal on 27 October 2026:
+
+- Frontend tests: `npm test` — **52 passed across 7 test files**.
+- Production build: `npm run build` — passed.
+- Lint: `npm run lint` — completed with no errors and one React Compiler warning, described under Known gaps.
+- Backend tests: `dotnet test RondiTrack.sln` — **40 passed, 0 failed, 0 skipped**.
+- Idempotency mutation proof: temporarily breaking retry key reuse caused 2 of the 6 targeted tests to fail. After restoring the helper, all 6 targeted tests passed.
+
+These results reflect the captured test output. They do not claim that the six API contract scenarios were exercised against a running deployment. The screen recording is also still outstanding.
+
 ## Known gaps
 
 - The legacy backend required exactly R500 per contribution. Assignment 7.4 specifies arbitrary positive amounts carried as integer cents (including the `150.50` to `15050` example), so this implementation changes that validation to accept positive amounts with at most two decimal places. Confirm this contract with the lecturer if the original fixed-R500 rule is intended to remain mandatory.
-- Run `npm run lint`, `npm run build`, and `npm test` in the target Codespace and include the actual output in the pull request. Do not report them as passing unless they pass there.
+- The frontend lint command completed with no errors and one React Compiler warning about React Hook Form's `form.watch()` usage in `web/src/components/RecordContributionForm.tsx`. Review the warning before final submission.
 - Run the six idempotency-contract checks (same-key replay, same-key changed body, duplicate with new key, rate limit then retry, missing header/OpenAPI, and CORS preflight) against the running API. The README answers above are source-based until that runtime evidence is captured.
 - Record the required video (two minutes or less): record a contribution; disable the network and submit; re-enable and retry while showing the same key in both requests; then record a second time and show the 409.
 - The API's idempotency store is in-memory in this repository. A process restart loses cached response bodies; the existing contribution uniqueness constraint still prevents a second contribution for the same member and cycle, but a retry after process restart may receive 409 rather than replaying the original 201.
