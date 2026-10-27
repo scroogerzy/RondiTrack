@@ -1527,6 +1527,15 @@ the workflow has completed.
 
 The frontend implementation and its Assignment 7.2 notes are in [`web/README.md`](web/README.md). Backend changes add status and totals to cycle responses, a required cycle ID to each contribution response, caller arrears to `/api/v1/me/home`, seed scenarios for Open/Closed/PaidOut cycles, and integration coverage in `RondiTrack.Tests/Integration/Assignment72BackendTests.cs`. The frontend README records the design choices, SA time handling, contrast calculations, test commands, and environment-dependent evidence that still needs to be captured rather than claimed without running it.
 
+#Assignment 7.3 -Live RondiTrack Data.
+
+The goal was to replace sample dashboard data with real API data and make authentication, retries, error handling, and stokvel switching safe.
+What we did for Assignment 7.3
+
+##Based on our previous work and the recorded branch history:
+- Live API integration: connected the frontend to the RondiTrack API using generated TypeScript types, an API client, and React Query hooks.
+- Authentication: worked on src/auth/session.ts so the access token stays in memory, concurrent refresh requests share
+
 # Assignment 7.4 — Record a Contribution
 
 ## Idempotency contract
