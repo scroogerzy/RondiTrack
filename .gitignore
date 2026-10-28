@@ -23,3 +23,6 @@ artifacts/assignment53-test-after-concurrency-fix.log
 
 # Local assignment backups
 *.assignment-*-backup
+
+# Local secrets
+web-next/.env.local
