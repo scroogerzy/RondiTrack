@@ -26,3 +26,6 @@ artifacts/assignment53-test-after-concurrency-fix.log
 
 # Local secrets
 web-next/.env.local
+
+# Root local environment secrets
+/.env
