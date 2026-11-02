@@ -1,67 +1,135 @@
 'use server';
 
-import { revalidatePath } from 'next/cache';
+import { randomUUID } from 'node:crypto';
+import { refresh } from 'next/cache';
+import { z } from 'zod';
 import { signedInApi } from '@/lib/api';
+import { parseRandsToCents } from '@/lib/money';
+
+const uuid = z.string().uuid();
+
+const contributionSchema = z.object({
+  stokvelId: uuid,
+  cycleId: uuid,
+  userId: uuid,
+  amount: z.string().trim().min(1).max(20).refine(value => {
+    try {
+      return parseRandsToCents(value) > 0;
+    } catch {
+      return false;
+    }
+  }, 'Enter a contribution greater than zero with no more than two decimal places.')
+});
 
 export type ContributionActionResult = {
   success: boolean;
   message: string;
+  reference?: string;
+  amount: string;
+  memberId: string;
+  idempotencyKey: string;
 };
 
 export async function recordContributionAction(
-  _previousState: ContributionActionResult,
-  formData: FormData,
+  previous: ContributionActionResult,
+  formData: FormData
 ): Promise<ContributionActionResult> {
+  // The server-held action state, not a browser-generated value, owns the key.
+  const amount = String(formData.get('amount') ?? '').trim();
+  const memberId = String(formData.get('userId') ?? '');
   const stokvelId = String(formData.get('stokvelId') ?? '');
   const cycleId = String(formData.get('cycleId') ?? '');
-  const userId = String(formData.get('userId') ?? '');
-  const amount = String(formData.get('amount') ?? '').trim();
-  const idempotencyKey = String(formData.get('idempotencyKey') ?? '');
 
-  const uuid =
-    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const changedPayload =
+    amount !== previous.amount || memberId !== previous.memberId;
 
-  if (![stokvelId, cycleId, userId, idempotencyKey].every((value) => uuid.test(value))) {
-    return { success: false, message: 'Invalid contribution details. Refresh and try again.' };
-  }
+  const idempotencyKey = changedPayload
+    ? randomUUID()
+    : previous.idempotencyKey || randomUUID();
 
-  if (!/^\d+(\.\d{1,2})?$/.test(amount)) {
-    return { success: false, message: 'Enter a valid amount with up to two decimal places.' };
-  }
+  const values = { stokvelId, cycleId, userId: memberId, amount };
+  const parsed = contributionSchema.safeParse(values);
 
-  const [whole, fraction = ''] = amount.split('.');
-  const amountInCents = Number(whole) * 100 + Number(fraction.padEnd(2, '0'));
-
-  if (!Number.isSafeInteger(amountInCents) || amountInCents <= 0) {
-    return { success: false, message: 'The contribution must be greater than zero.' };
-  }
-
-  const response = await signedInApi(
-    `/api/v1/stokvels/${stokvelId}/cycles/${cycleId}/contributions`,
-    {
-      method: 'POST',
-      headers: { 'Idempotency-Key': idempotencyKey },
-      body: JSON.stringify({ userId, amountInCents }),
-    },
-  );
-
-  if (!response.ok) {
-    const body = await response.json().catch(() => ({}));
-    const message =
-      body?.detail ||
-      body?.title ||
-      'The contribution could not be recorded.';
-
+  if (!parsed.success) {
     return {
       success: false,
-      message: `${message}${response.status === 429 ? ' Please wait before trying again.' : ''}`,
+      message: parsed.error.issues[0]?.message ?? 'Check the contribution details.',
+      amount,
+      memberId,
+      idempotencyKey
     };
   }
 
-  revalidatePath(`/stokvels/${stokvelId}`);
+  let amountInCents: number;
+  try {
+    amountInCents = parseRandsToCents(parsed.data.amount);
+  } catch {
+    return {
+      success: false,
+      message: 'Enter a valid amount in rand.',
+      amount,
+      memberId,
+      idempotencyKey
+    };
+  }
 
-  return {
-    success: true,
-    message: 'Contribution recorded successfully.',
-  };
+  try {
+    const response = await signedInApi(
+      `/api/v1/stokvels/${stokvelId}/cycles/${cycleId}/contributions`,
+      {
+        method: 'POST',
+        headers: { 'Idempotency-Key': idempotencyKey },
+        body: JSON.stringify({ userId: memberId, amountInCents })
+      }
+    );
+
+    if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
+      const reference =
+        body?.correlationId ||
+        body?.traceId ||
+        response.headers.get('x-correlation-id') ||
+        undefined;
+
+      const message =
+        response.status === 403
+          ? 'You are not authorised to record a contribution for this member. You are still signed in.'
+          : response.status === 409
+            ? body?.detail || 'This request conflicts with an existing contribution. Retry with the same details.'
+            : response.status === 422
+              ? body?.detail || 'The contribution or cycle is not valid.'
+              : response.status === 429
+                ? 'Too many requests. Wait before retrying this contribution.'
+                : body?.detail || body?.title || 'The contribution could not be recorded.';
+
+      return {
+        success: false,
+        message,
+        reference,
+        amount,
+        memberId,
+        idempotencyKey
+      };
+    }
+
+    refresh();
+
+    return {
+      success: true,
+      message: 'Contribution recorded successfully. The latest totals are refreshing.',
+      amount,
+      memberId,
+      idempotencyKey: randomUUID()
+    };
+  } catch {
+    // The API may have committed before the network failed.
+    // Keep the same key so a retry cannot create a duplicate.
+    return {
+      success: false,
+      message: 'The request outcome is unknown because the connection failed. Retry without changing the amount or member.',
+      amount,
+      memberId,
+      idempotencyKey
+    };
+  }
 }

@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { signedInApi, readOrFail } from '@/lib/api';
 import { stokvelsWhereTreasurer } from '@/lib/stokvelsWhereTreasurer';
 
@@ -15,7 +16,7 @@ type Home = {
   }[];
 };
 
-export default async function TreasurerDashboardPage() {
+async function TreasurerDashboardPageContent() {
   const home = await readOrFail<Home>(await signedInApi('/api/v1/me/home'));
   const items = stokvelsWhereTreasurer(home.stokvels ?? []);
 
@@ -39,5 +40,14 @@ export default async function TreasurerDashboardPage() {
         </div>
       )}
     </section>
+  );
+}
+
+
+export default function TreasurerDashboardPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse space-y-4"><div className="h-8 w-1/3 rounded bg-slate-200" /><div className="h-28 rounded-xl bg-slate-100" /><div className="h-28 rounded-xl bg-slate-100" /></div>}>
+      <TreasurerDashboardPageContent />
+    </Suspense>
   );
 }

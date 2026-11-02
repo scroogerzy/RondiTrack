@@ -178,6 +178,108 @@ public class StokvelServiceTests
         Assert.IsType<RecordContributionResult.KeyConflict>(result);
     }
 
+
+    /// <summary>
+    /// A contribution matching the stokvel's required amount succeeds.
+    /// </summary>
+    [Fact]
+    public async Task RecordContributionAsync_WhenAmountMatchesMonthlyContribution_RecordsContribution()
+    {
+        var stokvelRepository = new InMemoryStokvelRepository();
+        var userRepository = new InMemoryUserRepository();
+        var contributionRepository = new InMemoryContributionRepository();
+        var cycleRepository = new InMemoryContributionCycleRepository();
+        var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
+        var memberRepository = new InMemoryStokvelMemberRepository();
+
+        var stokvel = new Stokvel("Test Stokvel", 500m);
+        var user = new User("Test User", "test@example.com");
+        var startDate = DateTime.UtcNow.Date;
+
+        await stokvelRepository.AddAsync(stokvel);
+        await userRepository.AddAsync(user);
+
+        await memberRepository.AddAsync(
+            new StokvelMember(user.Id, stokvel.Id, "Member", DateTime.UtcNow));
+
+        await cycleRepository.AddAsync(new ContributionCycle(
+            stokvel.Id, 1, startDate, startDate.AddMonths(1), 500m));
+
+        var service = new StokvelService(
+            stokvelRepository,
+            userRepository,
+            contributionRepository,
+            cycleRepository,
+            idempotencyStore,
+            memberRepository);
+
+        var result = await service.RecordContributionAsync(
+            stokvel.Id,
+            user.Id,
+            "valid-amount-test",
+            new RecordContributionRequest(1, 500m));
+
+        Assert.IsType<RecordContributionResult.Recorded>(result);
+
+        var savedContribution =
+            await contributionRepository.GetByMemberAndCycleAsync(
+                stokvel.Id, user.Id, 1);
+
+        Assert.NotNull(savedContribution);
+        Assert.Equal(500m, savedContribution.Amount);
+    }
+
+    /// <summary>
+    /// Incorrect amounts cannot be recorded.
+    /// </summary>
+    [Theory]
+    [InlineData(500.01)]
+    [InlineData(5000.00)]
+    [InlineData(0.00)]
+    [InlineData(-500.00)]
+    public async Task RecordContributionAsync_WhenAmountDoesNotMatchMonthlyContribution_ReturnsInvalidAmount(
+        decimal amount)
+    {
+        var stokvelRepository = new InMemoryStokvelRepository();
+        var userRepository = new InMemoryUserRepository();
+        var contributionRepository = new InMemoryContributionRepository();
+        var cycleRepository = new InMemoryContributionCycleRepository();
+        var idempotencyStore = new InMemoryIdempotencyStore(TimeProvider.System);
+        var memberRepository = new InMemoryStokvelMemberRepository();
+
+        var stokvel = new Stokvel("Test Stokvel", 500m);
+        var user = new User("Test User", "test@example.com");
+
+        await stokvelRepository.AddAsync(stokvel);
+        await userRepository.AddAsync(user);
+
+        await memberRepository.AddAsync(
+            new StokvelMember(user.Id, stokvel.Id, "Member", DateTime.UtcNow));
+
+        var service = new StokvelService(
+            stokvelRepository,
+            userRepository,
+            contributionRepository,
+            cycleRepository,
+            idempotencyStore,
+            memberRepository);
+
+        var result = await service.RecordContributionAsync(
+            stokvel.Id,
+            user.Id,
+            Guid.NewGuid().ToString(),
+            new RecordContributionRequest(1, amount));
+
+        Assert.IsType<RecordContributionResult.InvalidAmount>(result);
+
+        var savedContribution =
+            await contributionRepository.GetByMemberAndCycleAsync(
+                stokvel.Id, user.Id, 1);
+
+        Assert.Null(savedContribution);
+    }
+
+
     /// <summary>
     /// Test double for IStokvelMemberRepository.
     /// It keeps membership records in memory for isolated unit tests.

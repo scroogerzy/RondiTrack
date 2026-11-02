@@ -2,7 +2,9 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   reactCompiler: true,
-  cacheComponents: false,
+  // Cache Components keeps uncached user-specific data out of shared caches.
+  cacheComponents: true,
+  partialPrefetching: true,
   typedRoutes: false,
 
   allowedDevOrigins: [

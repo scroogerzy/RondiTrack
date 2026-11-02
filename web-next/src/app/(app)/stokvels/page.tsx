@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { signedInApi, readOrFail } from '@/lib/api';
 
 type Home = {
@@ -17,7 +18,7 @@ type Home = {
 const money = (cents: number) =>
   new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' }).format(cents / 100);
 
-export default async function StokvelsPage() {
+async function StokvelsPageContent() {
   const response = await signedInApi('/api/v1/me/home');
   const home = await readOrFail<Home>(response);
   const items = home.stokvels ?? [];
@@ -39,5 +40,14 @@ export default async function StokvelsPage() {
         </div>
       )}
     </section>
+  );
+}
+
+
+export default function StokvelsPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse space-y-4"><div className="h-8 w-1/3 rounded bg-slate-200" /><div className="h-28 rounded-xl bg-slate-100" /><div className="h-28 rounded-xl bg-slate-100" /></div>}>
+      <StokvelsPageContent />
+    </Suspense>
   );
 }

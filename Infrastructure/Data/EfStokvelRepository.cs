@@ -1,5 +1,5 @@
-using RondiTrack.Domain.Repositories;
 
+using RondiTrack.Domain.Repositories;
 using Microsoft.EntityFrameworkCore;
 using RondiTrack.Domain.Models;
 
@@ -20,22 +20,25 @@ public class EfStokvelRepository : IStokvelRepository
     }
 
     /// <summary>
-    /// Retrieves all stokvels from PostgreSQL.
+    /// Retrieves all stokvels together with their persisted members.
     /// This is a read-only operation, so change tracking is unnecessary.
     /// </summary>
     public async Task<IEnumerable<Stokvel>> GetAllAsync()
     {
         return await _dbContext.Stokvels
             .AsNoTracking()
+            .Include(stokvel => stokvel.Members)
             .ToListAsync();
     }
 
     /// <summary>
-    /// Retrieves a stokvel by its primary key.
+    /// Retrieves a stokvel by its primary key together with its members.
     /// </summary>
     public async Task<Stokvel?> GetByIdAsync(Guid id)
     {
-        return await _dbContext.Stokvels.FindAsync(id);
+        return await _dbContext.Stokvels
+            .Include(stokvel => stokvel.Members)
+            .SingleOrDefaultAsync(stokvel => stokvel.Id == id);
     }
 
     /// <summary>
@@ -65,7 +68,6 @@ public class EfStokvelRepository : IStokvelRepository
             return false;
         }
 
-        // Use domain methods instead of assigning private-set properties.
         existingStokvel.UpdateName(stokvel.Name);
         existingStokvel.UpdateContribution(
             stokvel.MonthlyContribution);

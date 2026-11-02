@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { Suspense } from 'react';
 import { signedInApi, readOrFail } from '@/lib/api';
 
 type Home = {
@@ -21,7 +22,7 @@ const money = (cents: number) =>
     maximumFractionDigits: 2,
   }).format(cents / 100);
 
-export default async function MemberDashboardPage() {
+async function MemberDashboardPageContent() {
   const home = await readOrFail<Home>(await signedInApi('/api/v1/me/home'));
   const items = home.stokvels ?? [];
 
@@ -138,5 +139,14 @@ export default async function MemberDashboardPage() {
         </div>
       )}
     </section>
+  );
+}
+
+
+export default function MemberDashboardPage() {
+  return (
+    <Suspense fallback={<div className="animate-pulse space-y-4"><div className="h-8 w-1/3 rounded bg-slate-200" /><div className="h-28 rounded-xl bg-slate-100" /><div className="h-28 rounded-xl bg-slate-100" /></div>}>
+      <MemberDashboardPageContent />
+    </Suspense>
   );
 }
