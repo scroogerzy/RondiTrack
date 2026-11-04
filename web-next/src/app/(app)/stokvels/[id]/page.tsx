@@ -1,5 +1,7 @@
-
 import Link from 'next/link';
+import { Suspense } from 'react';
+import { randomUUID } from 'node:crypto';
+import { notFound } from 'next/navigation';
 import { signedInApi, readOrFail } from '@/lib/api';
 import ContributionForm from './contribution-form';
 
@@ -62,141 +64,164 @@ type Contribution = {
 const zar = (amount: number) =>
   new Intl.NumberFormat('en-ZA', {
     style: 'currency',
-    currency: 'ZAR',
+    currency: 'ZAR'
   }).format(amount);
 
 const centsToZar = (cents: number) => zar(cents / 100);
 
-export default async function StokvelDetailPage({
-  params,
-}: PageProps<'/stokvels/[id]'>) {
+function ContributionsSkeleton() {
+  return (
+    <div aria-label="Loading recent contributions" className="mt-4 animate-pulse space-y-3">
+      {[1, 2, 3].map(item => (
+        <div key={item} className="flex items-center justify-between border-b pb-3">
+          <div className="space-y-2">
+            <div className="h-4 w-32 rounded bg-slate-200" />
+            <div className="h-3 w-24 rounded bg-slate-100" />
+          </div>
+          <div className="h-4 w-20 rounded bg-slate-200" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+async function RecentContributions({
+  contributions,
+  memberNames
+}: {
+  contributions: Promise<Page<Contribution>>;
+  memberNames: Record<string, string>;
+}) {
+  const page = await contributions;
+  const items = page.items ?? [];
+
+  if (!items.length) {
+    return <p className="mt-3 text-sm text-slate-500">No contributions have been recorded for this cycle yet.</p>;
+  }
+
+  return (
+    <div className="mt-4 space-y-3">
+      {items.map(contribution => (
+        <div key={contribution.id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0">
+          <div>
+            <p className="font-medium">
+              {memberNames[contribution.userId.toLowerCase()] ?? 'Stokvel member'}
+            </p>
+            <p className="text-sm text-slate-500">
+              {new Date(contribution.recordedAt).toLocaleString('en-ZA')}
+            </p>
+          </div>
+          <p className="font-semibold">{zar(contribution.amount)}</p>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+async function StokvelDetailContent({
+  params
+}: {
+  params: Promise<{ id: string }>;
+}) {
   const { id } = await params;
 
-  if (
-    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)
-  ) {
-    const { notFound } = await import('next/navigation');
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
     notFound();
   }
 
+  // Start all independent reads together rather than awaiting a waterfall.
   const [stokvelResponse, homeResponse, cyclesResponse, membersResponse] =
     await Promise.all([
       signedInApi(`/api/v1/stokvels/${id}`),
       signedInApi('/api/v1/me/home'),
-      signedInApi(
-        `/api/v1/stokvels/${id}/cycles?pageSize=20&sortBy=periodNumber&sortDirection=desc`,
-      ),
-      signedInApi(`/api/v1/stokvels/${id}/members`),
+      signedInApi(`/api/v1/stokvels/${id}/cycles?pageSize=20&sortBy=periodNumber&sortDirection=desc`),
+      signedInApi(`/api/v1/stokvels/${id}/members`)
     ]);
+
+  // Keep forbidden and missing stokvels indistinguishable.
+  if ([stokvelResponse, cyclesResponse, membersResponse].some(
+    response => response.status === 403 || response.status === 404
+  )) notFound();
 
   const [stokvel, home, cyclePage, members] = await Promise.all([
     readOrFail<Stokvel>(stokvelResponse),
     readOrFail<HomeResponse>(homeResponse),
     readOrFail<Page<Cycle>>(cyclesResponse),
-    readOrFail<Member[]>(membersResponse),
+    readOrFail<Member[]>(membersResponse)
   ]);
 
   const membership = home.stokvels.find(
-    (item) => item.stokvelId.toLowerCase() === id.toLowerCase(),
+    item => item.stokvelId.toLowerCase() === id.toLowerCase()
   );
+  if (!membership) notFound();
 
-    if (!membership) {
-    const { notFound } = await import('next/navigation');
-    return notFound();
-  }
-
-  const cycles = cyclePage.items;
+  const cycles = cyclePage.items ?? [];
   const currentCycle =
-    cycles.find(
-      (cycle) =>
-        cycle.periodNumber === membership.currentCycle &&
-        !cycle.closedAtUtc &&
-        !cycle.payoutProcessedAtUtc,
+    cycles.find(cycle =>
+      cycle.periodNumber === membership.currentCycle &&
+      !cycle.closedAtUtc &&
+      !cycle.payoutProcessedAtUtc
     ) ??
-    cycles.find(
-      (cycle) =>
-        !cycle.closedAtUtc &&
-        !cycle.payoutProcessedAtUtc &&
-        !/closed|paid.?out/i.test(cycle.status),
+    cycles.find(cycle =>
+      !cycle.closedAtUtc &&
+      !cycle.payoutProcessedAtUtc &&
+      !/closed|paid.?out/i.test(cycle.status)
     );
 
-  let contributions: Contribution[] = [];
-
-  if (currentCycle) {
-    const response = await signedInApi(
-      `/api/v1/stokvels/${id}/cycles/${currentCycle.id}/contributions?pageSize=20&sortBy=recordedAt&sortDirection=desc`,
-    );
-
-    const page = await readOrFail<Page<Contribution>>(response);
-    contributions = page.items;
-  }
-
-  const memberNames = new Map(
-    members.map((member) => [member.id.toLowerCase(), member.fullName]),
+  const memberNames = Object.fromEntries(
+    members.map(member => [member.id.toLowerCase(), member.fullName])
   );
+
+  // Start this request now; only the child component awaits it.
+  const contributionsPromise = currentCycle
+    ? signedInApi(
+        `/api/v1/stokvels/${id}/cycles/${currentCycle.id}/contributions?pageSize=20&sortBy=recordedAt&sortDirection=desc`
+      ).then(response => {
+        if (response.status === 403 || response.status === 404) notFound();
+        return readOrFail<Page<Contribution>>(response);
+      })
+    : Promise.resolve({ items: [], nextPageToken: '', pageSize: 20 });
 
   return (
     <section className="space-y-6">
-      <Link href="/stokvels" className="underline">
-        ← My stokvels
-      </Link>
+      <Link href="/stokvels" className="underline">← My stokvels</Link>
 
       <header>
         <h1 className="text-3xl font-bold">{stokvel.name}</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Your role: {membership.role}
-        </p>
+        <p className="mt-1 text-sm text-slate-500">Your role: {membership.role}</p>
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border p-5">
           <p className="text-sm text-slate-500">Monthly contribution</p>
-          <p className="mt-2 text-xl font-semibold">
-            {zar(stokvel.monthlyContribution)}
-          </p>
+          <p className="mt-2 text-xl font-semibold">{zar(stokvel.monthlyContribution)}</p>
         </div>
-
         <div className="rounded-xl border p-5">
           <p className="text-sm text-slate-500">Members</p>
           <p className="mt-2 text-xl font-semibold">{stokvel.memberCount}</p>
         </div>
-
         <div className="rounded-xl border p-5">
           <p className="text-sm text-slate-500">Outstanding this cycle</p>
-          <p className="mt-2 text-xl font-semibold">
-            {centsToZar(membership.amountOwedCents)}
-          </p>
+          <p className="mt-2 text-xl font-semibold">{centsToZar(membership.amountOwedCents)}</p>
         </div>
-
         <div className="rounded-xl border p-5">
           <p className="text-sm text-slate-500">Paid this cycle</p>
-          <p className="mt-2 text-xl font-semibold">
-            {centsToZar(membership.amountPaidThisCycleCents)}
-          </p>
+          <p className="mt-2 text-xl font-semibold">{centsToZar(membership.amountPaidThisCycleCents)}</p>
         </div>
       </div>
 
       <section className="rounded-xl border p-5">
         <h2 className="text-xl font-semibold">Contribution cycles</h2>
-
-        {cycles.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">
-            No contribution cycles are available yet.
-          </p>
+        {!cycles.length ? (
+          <p className="mt-3 text-sm text-slate-500">No contribution cycles are available yet.</p>
         ) : (
           <div className="mt-4 space-y-3">
-            {cycles.map((cycle) => (
-              <div
-                key={cycle.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0"
-              >
+            {cycles.map(cycle => (
+              <div key={cycle.id} className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0">
                 <div>
-                  <p className="font-medium">
-                    Cycle {cycle.periodNumber}
-                  </p>
+                  <p className="font-medium">Cycle {cycle.periodNumber}</p>
                   <p className="text-sm text-slate-500">
-                    {new Date(cycle.startDate).toLocaleDateString('en-ZA')} –{' '}
-                    {new Date(cycle.endDate).toLocaleDateString('en-ZA')}
+                    {new Date(cycle.startDate).toLocaleDateString('en-ZA')} – {new Date(cycle.endDate).toLocaleDateString('en-ZA')}
                   </p>
                 </div>
                 <div className="text-right">
@@ -211,33 +236,28 @@ export default async function StokvelDetailPage({
 
       {currentCycle && (
         <section className="rounded-xl border p-5">
-          <h2 className="text-xl font-semibold">
-            Record a contribution
-          </h2>
+          <h2 className="text-xl font-semibold">Record a contribution</h2>
           <p className="mt-1 text-sm text-slate-500">
-            Cycle {currentCycle.periodNumber} · Target{' '}
-            {zar(currentCycle.targetAmount)}
+            Cycle {currentCycle.periodNumber} · Target {zar(currentCycle.targetAmount)}
           </p>
-
           <div className="mt-4">
             <ContributionForm
               stokvelId={id}
               cycleId={currentCycle.id}
               cycleNumber={currentCycle.periodNumber}
               cycleStatus={
-                currentCycle.closedAtUtc ||
-                currentCycle.payoutProcessedAtUtc
+                currentCycle.closedAtUtc || currentCycle.payoutProcessedAtUtc
                   ? 'Closed'
                   : currentCycle.status
               }
               currentUserId={home.currentUserId}
               role={membership.role}
               amountOwedCents={membership.amountOwedCents}
-              members={members.map(({ id, fullName, email }) => ({
-                id,
-                fullName,
-                email,
+              members={members.map(({ id: memberId, fullName }) => ({
+                id: memberId,
+                fullName
               }))}
+              initialIdempotencyKey={randomUUID()}
             />
           </div>
         </section>
@@ -245,43 +265,31 @@ export default async function StokvelDetailPage({
 
       <section className="rounded-xl border p-5">
         <h2 className="text-xl font-semibold">
-          {currentCycle
-            ? `Contributions — Cycle ${currentCycle.periodNumber}`
-            : 'Recent contributions'}
+          {currentCycle ? `Contributions — Cycle ${currentCycle.periodNumber}` : 'Recent contributions'}
         </h2>
-
         {!currentCycle ? (
-          <p className="mt-3 text-sm text-slate-500">
-            There is no open cycle to display contributions for.
-          </p>
-        ) : contributions.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">
-            No contributions have been recorded for this cycle yet.
-          </p>
+          <p className="mt-3 text-sm text-slate-500">There is no open cycle to display contributions for.</p>
         ) : (
-          <div className="mt-4 space-y-3">
-            {contributions.map((contribution) => (
-              <div
-                key={contribution.id}
-                className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 last:border-0"
-              >
-                <div>
-                  <p className="font-medium">
-                    {memberNames.get(contribution.userId.toLowerCase()) ??
-                      'Stokvel member'}
-                  </p>
-                  <p className="text-sm text-slate-500">
-                    {new Date(contribution.recordedAt).toLocaleString('en-ZA')}
-                  </p>
-                </div>
-                <p className="font-semibold">
-                  {zar(contribution.amount)}
-                </p>
-              </div>
-            ))}
-          </div>
+          <Suspense fallback={<ContributionsSkeleton />}>
+            <RecentContributions
+              contributions={contributionsPromise}
+              memberNames={memberNames}
+            />
+          </Suspense>
         )}
       </section>
     </section>
+  );
+}
+
+export default function StokvelDetailPage({
+  params
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  return (
+    <Suspense fallback={<div className="animate-pulse space-y-4"><div className="h-8 w-1/3 rounded bg-slate-200" /><div className="h-32 rounded-xl bg-slate-100" /><div className="h-32 rounded-xl bg-slate-100" /></div>}>
+      <StokvelDetailContent params={params} />
+    </Suspense>
   );
 }

@@ -228,10 +228,11 @@ public class ContributionCyclesController : ControllerBase
                     $"User '{request.UserId}' is not a member of stokvel '{stokvelId}'.", HttpContext.Request.Path),
             RecordContributionResult.DuplicateContribution duplicate =>
                 ProblemResponses.Conflict(
-                    $"User '{duplicate.UserId}' has already made a contribution for cycle {duplicate.Cycle}.", HttpContext.Request.Path),
+                    $"This member has already made a contribution for this cycle.", HttpContext.Request.Path),
             RecordContributionResult.InvalidAmount =>
                 ProblemResponses.UnprocessableEntity(
-                    "The amount must be positive and no more than two decimal places.", HttpContext.Request.Path),
+                    "The contribution amount must match this stokvel's required monthly contribution. It must be positive and have no more than two decimal places.",
+                    HttpContext.Request.Path),
             RecordContributionResult.InvalidCycle invalidCycle =>
                 ProblemResponses.UnprocessableEntity(
                     $"Contribution cycle '{invalidCycle.Cycle}' is invalid.", HttpContext.Request.Path),
@@ -497,6 +498,7 @@ public class ContributionCyclesController : ControllerBase
 
         return NoContent();
     }
+
     /// <summary>Records that the payout for a contribution cycle has been processed.</summary>
     [StokvelAuthorize(Policies.StokvelManager)]
     [HttpPost("{cycleId:guid}/payout")]
@@ -513,5 +515,4 @@ public class ContributionCyclesController : ControllerBase
         await _cycleRepository.UpdateAsync(cycle);
         return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
     }
-
 }

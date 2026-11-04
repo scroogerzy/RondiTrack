@@ -1,13 +1,14 @@
+
 using RondiTrack.Auth;
-﻿using RondiTrack.API.Data;
+using RondiTrack.API.Data;
 using RondiTrack.Domain.Models;
 using RondiTrack.Domain.Repositories;
+using RondiTrack.DTOs.Contributions;
+using RondiTrack.Mappings;
 
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
-using RondiTrack.DTOs.Contributions;
-using RondiTrack.Mappings;
 
 namespace RondiTrack.Services;
 
@@ -180,12 +181,16 @@ public class StokvelService : IStokvelService
                 request.Cycle);
         }
 
-        // Amounts are represented as integer cents at the API boundary.
-        // Keep the domain amount positive and limited to whole cents.
+        // Validate positivity, precision, and the stokvel's required amount.
         if (request.Amount <= 0m ||
-            decimal.Round(request.Amount, 2, MidpointRounding.AwayFromZero) != request.Amount)
+            decimal.Round(
+                request.Amount,
+                2,
+                MidpointRounding.AwayFromZero) != request.Amount ||
+            request.Amount != stokvel.MonthlyContribution)
         {
-            return new RecordContributionResult.InvalidAmount(request.Amount);
+            return new RecordContributionResult.InvalidAmount(
+                request.Amount);
         }
 
         var existingContribution =
@@ -203,17 +208,22 @@ public class StokvelService : IStokvelService
         }
 
         var cycle = await _cycleRepository.GetByStokvelAndPeriodAsync(
-            stokvelId, request.Cycle);
+            stokvelId,
+            request.Cycle);
+
         if (cycle is null)
         {
-            return new RecordContributionResult.InvalidCycle(request.Cycle);
+            return new RecordContributionResult.InvalidCycle(
+                request.Cycle);
         }
 
         // A closed cycle rejects new intents, but the same key is replayed
         // above before this check so an already-recorded intent remains safe.
-        if (cycle.ClosedAtUtc is not null || cycle.PayoutProcessedAtUtc is not null)
+        if (cycle.ClosedAtUtc is not null ||
+            cycle.PayoutProcessedAtUtc is not null)
         {
-            return new RecordContributionResult.ClosedCycle(request.Cycle);
+            return new RecordContributionResult.ClosedCycle(
+                request.Cycle);
         }
 
         // Reserve the key before attempting to store the contribution.

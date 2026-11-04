@@ -366,12 +366,12 @@ public class StokvelsController : ControllerBase
 
             RecordContributionResult.DuplicateContribution duplicate =>
                 ProblemResponses.Conflict(
-                    $"User '{duplicate.UserId}' has already made a contribution for cycle {duplicate.Cycle}.",
+                    $"This member has already made a contribution for this cycle.",
                     HttpContext.Request.Path),
 
             RecordContributionResult.InvalidAmount invalidAmount =>
                 ProblemResponses.UnprocessableEntity(
-                    $"Contribution amount '{invalidAmount.Amount}' is invalid. Use a positive amount with no more than two decimal places.",
+                    $"Contribution amount '{invalidAmount.Amount}' is invalid. It must match this stokvel's required monthly contribution and be positive with no more than two decimal places.",
                     HttpContext.Request.Path),
 
             RecordContributionResult.InvalidCycle invalidCycle =>
