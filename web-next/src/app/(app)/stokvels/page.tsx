@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { Suspense } from 'react';
 import { signedInApi, readOrFail } from '@/lib/api';
+import PinStokvelButton from '@/components/PinStokvelButton';
 
 type Home = {
   stokvels: {
@@ -29,13 +30,18 @@ async function StokvelsPageContent() {
       {!items.length ? <p>You don’t belong to any stokvels yet.</p> : (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {items.map(item => (
-            <Link key={item.stokvelId} href={`/stokvels/${item.stokvelId}`} className="rounded-xl border p-5 hover:bg-gray-50">
-              <h2 className="text-lg font-semibold">{item.name}</h2>
-              <p className="text-sm text-gray-600">Your role: {item.role}</p>
+            <article key={item.stokvelId} className="rounded-xl border p-5 hover:bg-gray-50">
+              <div className="flex items-start justify-between gap-3">
+                <Link href={`/stokvels/${item.stokvelId}`} className="text-lg font-semibold hover:underline">
+                  {item.name}
+                </Link>
+                <PinStokvelButton stokvelId={item.stokvelId} name={item.name} />
+              </div>
+              <p className="mt-2 text-sm text-gray-600">Your role: {item.role}</p>
               <p>Paid this cycle: {money(item.amountPaidThisCycleCents)}</p>
               <p>Still owed: {money(item.amountOwedCents)}</p>
               {item.nextPayoutDateUtc && <p>Next payout: {new Date(item.nextPayoutDateUtc).toLocaleDateString('en-ZA')}</p>}
-            </Link>
+            </article>
           ))}
         </div>
       )}

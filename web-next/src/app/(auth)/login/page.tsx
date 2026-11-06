@@ -1,5 +1,6 @@
 import { Suspense } from 'react';
 import LoginForm from './LoginForm';
+import ClearPinsOnExpiredSession from '@/components/ClearPinsOnExpiredSession';
 
 async function LoginContent({
   searchParams
@@ -11,6 +12,7 @@ async function LoginContent({
 
   return (
     <>
+      <ClearPinsOnExpiredSession expired={query.expired === '1'} />
       {query.expired && <p className="mb-3 text-sm text-amber-700">Your session expired. Please sign in again.</p>}
       {query.registered && <p className="mb-3 text-sm text-green-700">Your account was created. Please sign in.</p>}
       <LoginForm next={next} />
