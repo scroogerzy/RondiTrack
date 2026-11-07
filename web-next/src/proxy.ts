@@ -69,23 +69,31 @@ function loginRedirect(request: NextRequest, expired = false) {
 
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
+  const isBff = pathname.startsWith('/bff/');
   const protectedRoute =
-    pathname.startsWith('/dashboard') || pathname.startsWith('/stokvels');
+    isBff || pathname.startsWith('/dashboard') ||
+    pathname.startsWith('/stokvels') || pathname.startsWith('/activity');
 
   if (!protectedRoute) return NextResponse.next();
 
+  const expiredJson = () => {
+    const response = NextResponse.json({ title: 'Your session has ended.' }, { status: 401 });
+    response.cookies.delete(SESSION_COOKIE);
+    return response;
+  };
+
   const token = request.cookies.get(SESSION_COOKIE)?.value;
-  if (!token) return loginRedirect(request);
+  if (!token) return isBff ? expiredJson() : loginRedirect(request);
 
   const session = await openSession(token);
-  if (!session) return loginRedirect(request, true);
+  if (!session) return isBff ? expiredJson() : loginRedirect(request, true);
 
   let activeSession = session;
   let updatedToken: string | null = null;
 
   if (session.accessTokenExpiresAt <= Date.now() + 60_000) {
     const result = await refreshOnce(session);
-    if (!result.session) return loginRedirect(request, true);
+    if (!result.session) return isBff ? expiredJson() : loginRedirect(request, true);
 
     activeSession = result.session;
     updatedToken = await sealSession(activeSession);
@@ -118,5 +126,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/stokvels/:path*']
+  matcher: ['/dashboard/:path*', '/stokvels/:path*', '/activity/:path*', '/bff/:path*']
 };

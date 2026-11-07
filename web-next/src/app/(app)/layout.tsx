@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
-import { logout } from '@/app/actions/auth';
+import LogoutButton from '@/components/LogoutButton';
+import PinnedStokvels from '@/components/PinnedStokvels';
 
 async function SignedInSidebar() {
   const session = await getSession();
@@ -38,17 +39,19 @@ async function SignedInSidebar() {
         </Link>
       </nav>
 
+      <PinnedStokvels />
+
+      <Link href="/activity" className="mt-3 block rounded-xl px-4 py-3 font-medium text-slate-700 transition hover:bg-teal-50 hover:text-teal-800">
+        <span className="mr-3">◷</span> Activity feed
+      </Link>
+
       <div className="mt-8 rounded-2xl border border-teal-100 bg-teal-50 p-4">
         <p className="font-semibold text-teal-950">Stronger together.</p>
         <p className="mt-1 text-sm leading-5 text-teal-800">Keep your stokvel contributions and progress in one place.</p>
       </div>
 
       <div className="mt-auto pt-8">
-        <form action={logout}>
-          <button className="w-full rounded-xl border border-slate-200 px-4 py-3 text-left font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700">
-            ↗ Sign out
-          </button>
-        </form>
+        <LogoutButton />
         <p className="mt-4 text-xs text-slate-400">RondiTrack · Stokvel management</p>
       </div>
     </aside>

@@ -1,4 +1,4 @@
-# RondiTrack — Assignments 8.1–8.2: Next.js App Router, Data and Sign-in
+# RondiTrack — Assignments 8.1–8.3: Next.js App Router, Data, Sign-in and State
 
 ## Overview
 
@@ -13,6 +13,9 @@ The Next.js application uses Server Components and Server Actions to communicate
 - ASP.NET Core Web API and Entity Framework Core
 - PostgreSQL
 - `openapi-fetch` for typed API-client integration
+- `nuqs` for URL query state
+- TanStack Query for paged client-side data
+- Zustand for isolated persisted client preferences
 - `jose` for encrypted session cookies
 - Vitest for unit testing
 - ESLint for code quality
@@ -49,9 +52,11 @@ Keep `.env.local` private and out of version control. Do not prefix server-only 
 
 ```bash
 cd web-next
-npm ci
+npm install
 npm run dev
 ```
+
+`npm install` is required once after the Assignment 8.3 dependency additions so npm can regenerate `package-lock.json`. Commit that updated lockfile; subsequent clean installs should use `npm ci`.
 
 Open the development URL reported by Next.js, normally `http://localhost:3000`.
 
@@ -64,6 +69,7 @@ npm test
 npm run lint
 npx tsc --noEmit
 npm run build
+npm audit
 ```
 
 From the repository root:
@@ -161,3 +167,90 @@ See [`docs/evidence/assignment-8.2/README.md`](docs/evidence/assignment-8.2/READ
 ## Submission evidence
 
 The evidence directory contains the screenshots and two supplied screen recordings. The recordings are large MP4 files; use Git LFS for them if they are to be committed to a GitHub repository. GitHub blocks ordinary Git blobs larger than 100 MiB. Do not commit the MP4s as ordinary Git files.
+
+
+## Assignment 8.3 — URL state, feed paging and pinned stokvels
+
+> **Verification status:** this source archive contains the implementation changes described below, but they have not yet been built or tested in the Codespaces environment. Do not treat the checklist as submission evidence until the commands and browser scenarios have been run against the final commit.
+
+### API check
+
+The API contract implemented for this assignment is:
+
+| Check | Implemented contract | Verification still required |
+|---|---|---|
+| Contribution history | `GET /api/v1/stokvels/{stokvelId}/contributions` accepts `userId`, `from`, `to`, `pageSize`, `pageToken` and `sortDirection`. | Call it against the running PostgreSQL API and capture the responses. |
+| Date semantics | `from` and `to` are ISO UTC instants. `from` is included and `to` is excluded. The API converts incoming `DateTimeOffset` values to UTC before querying. | Prove the October boundary with a persisted 23:30 SAST contribution. |
+| Activity feed | `GET /api/v1/activity` returns contribution, payout and member-join activity newest first, scoped to the caller's current stokvel memberships. | Verify each activity type and verify a non-member receives an empty feed. |
+| Page-token mismatch | Contribution history tokens bind stokvel, member, both UTC instants and sort direction. Activity tokens bind the caller and the last ordered item. A mismatch returns HTTP 400. | Send a deliberately mismatched token and retain the 400 response. |
+| Member filter | The current caller must belong to the stokvel. A selected `userId` must also be a member of that stokvel; otherwise the history API returns HTTP 400. | Try a member ID from a different stokvel and confirm no other group's rows are exposed. |
+
+The existing cycle-specific history endpoint remains available for the Assignment 8.2 stokvel detail view. The new history endpoint spans cycles for the selected stokvel.
+
+### Where each piece of state lives
+
+| State | Location | Reason |
+|---|---|---|
+| Selected history member | URL (`member`) | A copied link and browser navigation preserve the selected member. |
+| History start and end dates | URL (`from`, `to`) as `YYYY-MM-DD` | They represent Johannesburg calendar dates, not JavaScript UTC `Date` values. |
+| History sort direction | URL (`direction`) | The same ordered history can be reopened from a link. |
+| Contribution and activity records | API / PostgreSQL | The API remains the source of truth for financial and membership records. |
+| First history/feed page | Server Component response | Page one is rendered from the URL/session before client paging begins. |
+| Later pages and opaque tokens | TanStack Query infinite-query cache | Tokens are transient continuation state and are not shared as filters. |
+| Pinned stokvels | Per-provider Zustand store + browser `localStorage` | Several components need this preference; it is not API data and is cleared at sign-out/expiry. |
+| Pin data | Only stokvel `id` and `name` | Balances, roles and member lists remain server-owned and are not copied into client storage. |
+| Filter transition indicator and form input | Component-local React state | These values only matter while the relevant component is mounted. |
+
+### Filters
+
+`src/lib/contributionHistoryFilters.ts` is the single parser definition imported by the server page, the contribution-history Route Handler and the client filter controls. The filter allow-list and defaults are:
+
+| URL key | Parser / accepted values | Default |
+|---|---|---|
+| `member` | GUID allow-list; a GUID not belonging to this stokvel is rejected by the API | Absent (`Everyone`) |
+| `from` | Strict real calendar date in `YYYY-MM-DD` | Absent (no lower bound) |
+| `to` | Strict real calendar date in `YYYY-MM-DD`; inclusive in the UI | Absent (no upper bound) |
+| `direction` | String literal `asc` or `desc` | `desc` (newest first) |
+
+Filter changes use `shallow: false`, so the server fetches and renders a new first page for the new URL. The chosen history mode is `push`: browser Back returns to the previous filter selection. A reversed date range is cleared back to the unfiltered date range instead of producing an error page.
+
+### Dates
+
+`src/lib/southAfricanDateRange.ts` is the only conversion function for the contribution-history date filters: `southAfricanDaysToUtcRange`. It treats URL values as Johannesburg calendar days and converts them to a half-open UTC range. South Africa is UTC+02:00 year-round.
+
+For 1–31 October 2026:
+
+- Start: `2026-10-01 00:00 SAST` = `2026-09-30T22:00:00.000Z` (included).
+- End: `2026-11-01 00:00 SAST` = `2026-10-31T22:00:00.000Z` (excluded).
+- A payment at `2026-10-31T21:30:00.000Z` (23:30 SAST on 31 October) is inside the range.
+- A payment at `2026-10-31T22:00:00.000Z` (00:00 SAST on 1 November) is outside the range.
+
+The rule for partial ranges is explicit: `from` alone means from local midnight onward; `to` alone means through that local date, ending at the next local midnight. `from` and `to` on the same date cover 24 hours. `to` before `from` is rejected by the pure function and cleared by the page. Impossible dates such as `2026-02-30` are rejected by the parser. Displayed contribution times explicitly use `Africa/Johannesburg`.
+
+Run the date tests under both time zones and retain both outputs in the PR description:
+
+```bash
+cd web-next
+TZ=UTC npm test -- src/lib/southAfricanDateRange.test.ts
+TZ=Africa/Johannesburg npm test -- src/lib/southAfricanDateRange.test.ts
+```
+
+### Paging
+
+The server-rendered contribution-history page and activity page each load page one directly from the API using the encrypted server session. The browser fetches later pages only from same-site Next.js Route Handlers: `/bff/stokvels/{id}/contributions` and `/bff/activity`. The contribution-history handler applies the shared URL parser, runs the single South African date conversion function, maps the allow-listed filters to the API query contract, and attaches the bearer token server-side. Both handlers return API JSON/status codes. A missing or expired session receives a JSON 401 on `/bff/`, not the login page's HTML.
+
+Both lists use TanStack Query 5 infinite queries for pages after the server-rendered first page. `initialPageParam` is the opaque token returned by page one. The first page is not duplicated into the infinite-query cache, so refetching later pages cannot mistakenly treat the continuation token as page one's token. The contribution-history query key includes every filter and a first-page fingerprint; changing a filter creates a new first-page result and cannot continue the previous filter's token. The API token is treated as opaque and is returned unchanged. Both lists use an `IntersectionObserver`, a keyboard-accessible **Load more** button, and a `role="status"` count that only says “all” when the API token is empty. After a successful save, the Server Action revalidates `/stokvels/{id}/contributions` and `/activity` so each server-rendered first page is fresh, then calls `refresh()` for the current route. The client form removes the TanStack caches containing later pages; when either page is visited again, it continues from the refreshed first-page token rather than reusing old pages.
+
+### Pinned stokvels
+
+The store is created by `createPinnedStokvelStore()` and instantiated once per `PinnedStokvelProvider` with `useState`; there is no module-level store singleton. Server Components do not read it. `persist` stores only the stokvel ID and name, with `skipHydration`; the provider calls `rehydrate()` in an effect after the first render.
+
+The sign-out form clears the store and React Query's user-scoped cache before invoking the Server Action. A protected-page expiry redirects to `/login?expired=1`; the login page clears the store, its persisted storage and the React Query cache. A BFF expiry returns JSON 401; the client then redirects through the same cleanup path. A saved pin for a stokvel the member has left remains a link, but opening it reaches the existing not-found response because the API no longer authorizes that membership. No financial or membership details are kept in the pin store.
+
+### Known gaps
+
+- The activity feed is projected from current `Contribution`, `ContributionCycle` payout timestamps and `StokvelMember` rows. The existing API physically deletes a `StokvelMember` row when a member is removed; consequently, that former membership's join event is no longer available in the derived feed. A durable audit-event table would be needed to preserve that historical event after removal.
+- API integration tests and the real Postgres query plan have not been run for the new endpoints in this environment.
+- The required browser checks, including shared contribution-history links, the 23:30 SAST boundary, multi-page activity, keyboard loading, no browser-to-API-port calls, and pin clearing on a shared browser, still need screen-recorded evidence.
+- `package.json` pins the Assignment 8.3 libraries to the brief's exact versions. The checked-in `package-lock.json` still needs to be regenerated in Codespaces with `npm install` before a clean `npm ci`; the package registry was not reachable from the current working runtime. Run `npm audit` after the lockfile update; a zero-vulnerability result has not yet been verified for this draft.
+- This runtime has no .NET SDK, so `dotnet build` and `dotnet test` could not be executed here. Do not claim the new API code passes until those checks pass in Codespaces.

@@ -1,7 +1,7 @@
 'use server';
 
 import { randomUUID } from 'node:crypto';
-import { refresh } from 'next/cache';
+import { refresh, revalidatePath } from 'next/cache';
 import { z } from 'zod';
 import { signedInApi } from '@/lib/api';
 import { parseRandsToCents } from '@/lib/money';
@@ -112,6 +112,10 @@ export async function recordContributionAction(
       };
     }
 
+    // Refresh the current Server Component and invalidate the two server-rendered
+    // first pages that also include this contribution.
+    revalidatePath(`/stokvels/${stokvelId}/contributions`);
+    revalidatePath('/activity');
     refresh();
 
     return {

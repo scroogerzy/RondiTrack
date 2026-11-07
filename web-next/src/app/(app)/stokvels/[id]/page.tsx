@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { notFound } from 'next/navigation';
 import { signedInApi, readOrFail } from '@/lib/api';
 import ContributionForm from './contribution-form';
+import PinStokvelButton from '@/components/PinStokvelButton';
 
 type Stokvel = {
   id: string;
@@ -186,9 +187,15 @@ async function StokvelDetailContent({
     <section className="space-y-6">
       <Link href="/stokvels" className="underline">← My stokvels</Link>
 
-      <header>
-        <h1 className="text-3xl font-bold">{stokvel.name}</h1>
-        <p className="mt-1 text-sm text-slate-500">Your role: {membership.role}</p>
+      <header className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-3xl font-bold">{stokvel.name}</h1>
+          <p className="mt-1 text-sm text-slate-500">Your role: {membership.role}</p>
+          <Link href={`/stokvels/${id}/contributions`} className="mt-2 inline-block text-sm font-semibold text-teal-800 underline">
+            View full contribution history
+          </Link>
+        </div>
+        <PinStokvelButton stokvelId={id} name={stokvel.name} />
       </header>
 
       <div className="grid gap-4 sm:grid-cols-2">

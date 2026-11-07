@@ -1,6 +1,7 @@
 'use client';
 
-import { useActionState, useState } from 'react';
+import { useActionState, useEffect, useRef, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   recordContributionAction,
   type ContributionActionResult
@@ -31,6 +32,8 @@ function money(cents: number) {
 }
 
 export default function ContributionForm(props: Props) {
+  const queryClient = useQueryClient();
+  const invalidated = useRef(false);
   const initialAmount = (props.amountOwedCents / 100).toFixed(2);
 
   const initialState: ContributionActionResult = {
@@ -48,6 +51,17 @@ export default function ContributionForm(props: Props) {
 
   const [amount, setAmount] = useState(initialAmount);
   const [memberId, setMemberId] = useState(props.currentUserId);
+
+  useEffect(() => {
+    if (state.success && !invalidated.current) {
+      invalidated.current = true;
+      // Only the later-page caches live in TanStack Query. Remove them so the
+      // next visit continues from the refreshed server-rendered page-one token.
+      queryClient.removeQueries({ queryKey: ['contribution-history', props.stokvelId] });
+      queryClient.removeQueries({ queryKey: ['activity-feed'] });
+    }
+    if (!state.success) invalidated.current = false;
+  }, [state.success, queryClient, props.stokvelId]);
 
   const isTreasurer = props.role.toLowerCase() === 'treasurer';
   const isClosed = /closed|paid.?out/i.test(props.cycleStatus);
