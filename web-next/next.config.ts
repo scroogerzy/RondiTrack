@@ -12,7 +12,9 @@ const nextConfig: NextConfig = {
   ],
 
   experimental: {
+    proxyClientMaxBodySize: '10mb',
     serverActions: {
+      bodySizeLimit: '1mb',
       allowedOrigins: [
         "repulsive-werewolf-7vjrgqqp9vrv3wr6w-3000.app.github.dev",
         "localhost:3000",

@@ -33,6 +33,7 @@ public static class DomainMappings
             stokvel.Id,
             stokvel.Name,
             stokvel.MonthlyContribution,
+            stokvel.Rules,
             stokvel.Members.Count,
             stokvel.Version);
     }

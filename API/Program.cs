@@ -261,6 +261,19 @@ builder.Services.AddRateLimiter(options =>
                 AutoReplenishment = true
             }));
 
+    options.AddPolicy(RateLimitPolicies.Invites, httpContext =>
+        RateLimitPartition.GetFixedWindowLimiter(
+            partitionKey: httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub)
+                ?? httpContext.Connection.RemoteIpAddress?.ToString()
+                ?? "unknown-client",
+            factory: _ => new FixedWindowRateLimiterOptions
+            {
+                PermitLimit = 10,
+                Window = TimeSpan.FromMinutes(1),
+                QueueLimit = 0,
+                AutoReplenishment = true
+            }));
+
     options.AddPolicy(RateLimitPolicies.Contributions, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
             partitionKey: httpContext.User.FindFirstValue(JwtRegisteredClaimNames.Sub)

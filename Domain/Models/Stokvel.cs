@@ -15,6 +15,8 @@ public class Stokvel
 
     public string Name { get; private set; } = null!;
 
+    public string Rules { get; private set; } = string.Empty;
+
     // Decimal is the correct choice for money because it avoids
     // floating-point precision issues.
     public decimal MonthlyContribution { get; private set; }
@@ -34,7 +36,8 @@ public class Stokvel
 
     public Stokvel(
         string name,
-        decimal monthlyContribution)
+        decimal monthlyContribution,
+        string rules = "")
     {
         if (string.IsNullOrWhiteSpace(name))
         {
@@ -54,6 +57,7 @@ public class Stokvel
         Id = Guid.NewGuid();
         Name = name;
         MonthlyContribution = monthlyContribution;
+        UpdateRules(rules);
     }
 
     // Membership rules belong inside the entity.
@@ -95,6 +99,13 @@ public class Stokvel
         }
 
         Name = name;
+    }
+
+    public void UpdateRules(string rules)
+    {
+        if (rules is null || rules.Length > 4000)
+            throw new ArgumentException("Rules must be 4,000 characters or fewer.", nameof(rules));
+        Rules = rules.Trim();
     }
 
     public void UpdateContribution(decimal monthlyContribution)

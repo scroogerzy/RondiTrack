@@ -254,3 +254,47 @@ The sign-out form clears the store and React Query's user-scoped cache before in
 - The required browser checks, including shared contribution-history links, the 23:30 SAST boundary, multi-page activity, keyboard loading, no browser-to-API-port calls, and pin clearing on a shared browser, still need screen-recorded evidence.
 - `package.json` pins the Assignment 8.3 libraries to the brief's exact versions. The checked-in `package-lock.json` still needs to be regenerated in Codespaces with `npm install` before a clean `npm ci`; the package registry was not reachable from the current working runtime. Run `npm audit` after the lockfile update; a zero-vulnerability result has not yet been verified for this draft.
 - This runtime has no .NET SDK, so `dotnet build` and `dotnet test` could not be executed here. Do not claim the new API code passes until those checks pass in Codespaces.
+
+## Assignment 9.1 — Join flow, proof of payment and safe confirmations
+
+### API check
+
+- `PUT /api/v1/stokvels/{stokvelId}/rules` saves the group rules; `POST /api/v1/stokvels/{stokvelId}/invites` creates a seven-day invite. Only a stokvel treasurer may create one.
+- `GET /api/v1/invites/{code}` returns the non-member preview; unknown codes return 404 and expired codes return 410.
+- `POST /api/v1/invites/{code}/join` uses the authenticated caller's subject. It never accepts a browser-supplied member ID. Duplicate membership returns 409.
+- `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/close-preview` and `POST .../close` are Treasurer-only.
+- Proof routes are `POST`, `GET` and `DELETE /api/v1/stokvels/{stokvelId}/contributions/{contributionId}/proof`.
+
+### Join flow
+
+| Step | URL state | Content |
+| --- | --- | --- |
+| 1 | `?step=1` | Invitation and stokvel identity |
+| 2 | `?step=2` | Contribution amount, schedule and rules |
+| 3 | `?step=3` | Membership confirmation |
+
+The code remains in the URL. The login return path is same-site validated by the existing `safeNext` function. The join endpoint identifies the signed-in user from the access token and the membership composite key prevents duplicate rows.
+
+### Uploads
+
+- The browser accepts PDF, PNG and JPEG and checks a 5 MB maximum as a courtesy; the API checks actual file signatures and size.
+- The upload path is browser → Next.js BFF Route Handler → authenticated API. The BFF parses and forwards multipart form data without adding a JSON content type; its 5 MB file cap bounds buffering. The API file limit is 5 MB (with 64 KB transport allowance for multipart framing); the Next proxy client body limit is 10 MB. The Server Action 1 MB default does not apply because upload uses a Route Handler, not a Server Action.
+- The API stores proof bytes privately in PostgreSQL. Downloads pass through the authenticated BFF and return attachment disposition, `X-Content-Type-Options: nosniff`, and `Cache-Control: private, no-store`.
+- Only the original uploader or a Treasurer of the same stokvel can download. Other callers receive the same 404. Upload replacement and removal are blocked with 409 after cycle closure.
+
+### Closing a cycle
+
+- The preview returns the cycle version, each member's shortfall in cents, total arrears, and preview date. The close operation recalculates using the same monthly-contribution-minus-paid formula.
+- The close request carries the preview version and an `Idempotency-Key`. A durable receipt makes same-key retries replay the successful result; a stale version returns 409. The unique cycle receipt and transaction prevent duplicate arrears records.
+- The confirmation dialog describes the arrears consequence, shows skeleton rows while loading, focuses Cancel initially, supports Escape, and remains open while the request runs.
+
+### Feedback
+
+- File type/size and API validation errors are shown inline. Upload success and failure messages remain visible until the user changes or dismisses the state.
+- Close-preview and close errors remain in the dialog so the user can act on them. A stale-preview 409 triggers a fresh preview before reconfirmation.
+
+### Known gaps
+
+- Stokvel rules are now persisted and editable by the stokvel treasurer. Existing groups migrate with an empty rules value until their managers add the actual group rules.
+- The proof bytes are stored in PostgreSQL for this assignment implementation. A production deployment should move binary objects to private object storage while retaining the same authorization and streaming BFF contract.
+- The assignment's full cross-browser stale-preview recording and backend integration suite must be run in the Codespace against PostgreSQL before merging.

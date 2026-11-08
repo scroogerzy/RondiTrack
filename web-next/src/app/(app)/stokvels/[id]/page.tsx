@@ -5,11 +5,15 @@ import { notFound } from 'next/navigation';
 import { signedInApi, readOrFail } from '@/lib/api';
 import ContributionForm from './contribution-form';
 import PinStokvelButton from '@/components/PinStokvelButton';
+import CycleSafetyControls from './CycleSafetyControls';
+import InviteLinkButton from './InviteLinkButton';
+import StokvelRulesEditor from './StokvelRulesEditor';
 
 type Stokvel = {
   id: string;
   name: string;
   monthlyContribution: number;
+  rules: string;
   memberCount: number;
   version: number;
 };
@@ -88,10 +92,12 @@ function ContributionsSkeleton() {
 
 async function RecentContributions({
   contributions,
-  memberNames
+  memberNames,
+  stokvelId
 }: {
   contributions: Promise<Page<Contribution>>;
   memberNames: Record<string, string>;
+  stokvelId: string;
 }) {
   const page = await contributions;
   const items = page.items ?? [];
@@ -112,7 +118,7 @@ async function RecentContributions({
               {new Date(contribution.recordedAt).toLocaleString('en-ZA')}
             </p>
           </div>
-          <p className="font-semibold">{zar(contribution.amount)}</p>
+          <div className="text-right"><p className="font-semibold">{zar(contribution.amount)}</p><Link className="text-xs text-teal-800 underline" href={`/stokvels/${stokvelId}/proof/${contribution.id}`}>Proof of payment</Link></div>
         </div>
       ))}
     </div>
@@ -195,8 +201,10 @@ async function StokvelDetailContent({
             View full contribution history
           </Link>
         </div>
-        <PinStokvelButton stokvelId={id} name={stokvel.name} />
+        <div className="flex flex-wrap items-center gap-2"><PinStokvelButton stokvelId={id} name={stokvel.name} />{(membership.role === 'Treasurer') && <InviteLinkButton stokvelId={id} />}</div>
       </header>
+
+      {(membership.role === 'Treasurer') && <StokvelRulesEditor stokvelId={id} initialRules={stokvel.rules ?? ''} />}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="rounded-xl border p-5">
@@ -234,6 +242,7 @@ async function StokvelDetailContent({
                 <div className="text-right">
                   <p>{centsToZar(cycle.totalCollectedCents)} collected</p>
                   <p className="text-sm text-slate-500">{cycle.status}</p>
+                  {(membership.role === 'Treasurer') && !cycle.closedAtUtc && <CycleSafetyControls stokvelId={id} cycleId={cycle.id} />}
                 </div>
               </div>
             ))}
@@ -281,6 +290,7 @@ async function StokvelDetailContent({
             <RecentContributions
               contributions={contributionsPromise}
               memberNames={memberNames}
+              stokvelId={id}
             />
           </Suspense>
         )}
