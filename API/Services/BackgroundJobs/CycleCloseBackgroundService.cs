@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using RondiTrack.Domain.Models;
+using RondiTrack.Domain.Calculations;
 using RondiTrack.Infrastructure.Data;
 using RondiTrack.Services;
 
@@ -174,13 +175,11 @@ public sealed class CycleCloseBackgroundService : BackgroundService
             foreach (var userId in members)
             {
                 paid.TryGetValue(userId, out var amountPaid);
-                var shortfall = Math.Max(0m, stokvel.MonthlyContribution - amountPaid);
+                var cents = ArrearCalculator.CalculateShortfallCents(
+                    stokvel.MonthlyContribution, amountPaid);
 
-                if (shortfall <= 0m)
+                if (cents <= 0)
                     continue;
-
-                var cents = checked((long)decimal.Round(
-                    shortfall * 100m, 0, MidpointRounding.AwayFromZero));
 
                 db.ArrearRecords.Add(new ArrearRecord(
                     stokvelId, userId, cycle.PeriodNumber, cents, nowUtc));

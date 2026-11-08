@@ -23,6 +23,9 @@ public class RondiTrackDbContext : DbContext
     public DbSet<ContributionCycle> ContributionCycles => Set<ContributionCycle>();
     public DbSet<Contribution> Contributions => Set<Contribution>();
     public DbSet<ArrearRecord> ArrearRecords => Set<ArrearRecord>();
+    public DbSet<StokvelInvite> StokvelInvites => Set<StokvelInvite>();
+    public DbSet<ContributionProof> ContributionProofs => Set<ContributionProof>();
+    public DbSet<CycleCloseReceipt> CycleCloseReceipts => Set<CycleCloseReceipt>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -89,6 +92,11 @@ public class RondiTrackDbContext : DbContext
 
             entity.Property(stokvel => stokvel.MonthlyContribution)
                 .IsRequired();
+
+            entity.Property(stokvel => stokvel.Rules)
+                .IsRequired()
+                .HasMaxLength(4000)
+                .HasDefaultValue("");
         });
 
         // A membership is uniquely identified by the User/Stokvel pair.
@@ -228,6 +236,40 @@ public class RondiTrackDbContext : DbContext
                 "IX_Contributions_StokvelId_Cycle_RecordedAt_Id");
         });
 
+
+        modelBuilder.Entity<StokvelInvite>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.Property(x => x.CodeHash).IsRequired().HasMaxLength(64);
+            entity.HasIndex(x => x.CodeHash).IsUnique();
+            entity.HasIndex(x => new { x.StokvelId, x.ExpiresAtUtc });
+            entity.HasOne<Stokvel>().WithMany().HasForeignKey(x => x.StokvelId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<CycleCloseReceipt>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.Property(x => x.IdempotencyKey).IsRequired().HasMaxLength(128);
+            entity.HasIndex(x => x.IdempotencyKey).IsUnique();
+            entity.HasIndex(x => x.CycleId).IsUnique();
+            entity.HasOne<Stokvel>().WithMany().HasForeignKey(x => x.StokvelId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<ContributionCycle>().WithMany().HasForeignKey(x => x.CycleId).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<ContributionProof>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.Property(x => x.Id).ValueGeneratedNever();
+            entity.Property(x => x.FileName).IsRequired().HasMaxLength(255);
+            entity.Property(x => x.ContentType).IsRequired().HasMaxLength(100);
+            entity.Property(x => x.Content).IsRequired();
+            entity.HasIndex(x => x.ContributionId).IsUnique();
+            entity.HasOne<Contribution>().WithMany().HasForeignKey(x => x.ContributionId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<Stokvel>().WithMany().HasForeignKey(x => x.StokvelId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne<User>().WithMany().HasForeignKey(x => x.UploadedByUserId).OnDelete(DeleteBehavior.Restrict);
+        });
 
         modelBuilder.Entity<ArrearRecord>(entity =>
         {

@@ -1,0 +1,7 @@
+'use client';
+import { useState } from 'react';
+export default function StokvelRulesEditor({ stokvelId, initialRules }: { stokvelId: string; initialRules: string }) {
+  const [rules, setRules] = useState(initialRules); const [message, setMessage] = useState(''); const [pending, setPending] = useState(false);
+  async function save() { setPending(true); setMessage(''); try { const response = await fetch(`/bff/stokvels/${stokvelId}/rules`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rules }) }); if (!response.ok) throw new Error('Rules could not be saved.'); setMessage('Stokvel rules saved.'); } catch (e) { setMessage(e instanceof Error ? e.message : 'Rules could not be saved.'); } finally { setPending(false); } }
+  return <section className="rounded-xl border bg-white p-5"><h2 className="text-lg font-semibold">Stokvel rules</h2><textarea value={rules} onChange={event => setRules(event.target.value)} maxLength={4000} rows={4} className="mt-3 w-full rounded-lg border p-3" placeholder="Add the rules members should review before joining."/><div className="mt-3 flex items-center justify-between"><span className="text-xs text-slate-500">{rules.length}/4000 characters</span><button onClick={save} disabled={pending} className="rounded-lg bg-teal-700 px-4 py-2 font-semibold text-white disabled:opacity-50">{pending ? 'Saving…' : 'Save rules'}</button></div>{message && <p role="status" className="mt-2 text-sm">{message}</p>}</section>;
+}

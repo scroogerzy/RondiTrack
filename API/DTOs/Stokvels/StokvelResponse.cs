@@ -7,5 +7,6 @@ public record StokvelResponse(
     Guid Id,
     string Name,
     decimal MonthlyContribution,
+    string Rules,
     int MemberCount,
     uint Version);
