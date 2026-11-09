@@ -29,6 +29,64 @@ jobs:
       - name: Run all tests
         run: dotnet test RondiTrack.sln --configuration Release --no-build --logger "console;verbosity=normal"
 
+  frontend:
+    runs-on: ubuntu-latest
+    env:
+      API_BASE_URL: http://127.0.0.1:5076
+      SESSION_SECRET: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      NEXT_PUBLIC_SITE_URL: http://127.0.0.1:3000
+    defaults:
+      run:
+        working-directory: web-next
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-next/package-lock.json
+
+      - name: Install frontend dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Generate Next.js route types
+        run: npx next typegen
+
+      - name: Type-check
+        run: npx tsc --noEmit
+
+      - name: Unit tests (UTC)
+        run: npm run test:utc
+
+      - name: Unit tests (Johannesburg)
+        run: npm run test:sast
+
+      - name: Production build
+        run: npm run build
+
+      - name: Install Chromium and system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Browser, privacy and axe tests
+        run: npm run test:e2e
+
+      - name: Upload Playwright report and failure traces
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-${{ github.run_id }}
+          path: |
+            web-next/playwright-report/
+            web-next/test-results/
+          if-no-files-found: ignore
+          retention-days: 14
+
   docker-image:
     runs-on: ubuntu-latest
     needs: build-test

@@ -6,6 +6,7 @@ import {
   recordContributionAction,
   type ContributionActionResult
 } from './actions';
+import { canRecordForAnotherMember } from '@/lib/contributionPermissions';
 
 type Member = {
   id: string;
@@ -63,7 +64,7 @@ export default function ContributionForm(props: Props) {
     if (!state.success) invalidated.current = false;
   }, [state.success, queryClient, props.stokvelId]);
 
-  const isTreasurer = props.role.toLowerCase() === 'treasurer';
+  const canSelectMember = canRecordForAnotherMember(props.role);
   const isClosed = /closed|paid.?out/i.test(props.cycleStatus);
 
   if (isClosed) {
@@ -87,7 +88,7 @@ export default function ContributionForm(props: Props) {
         value={state.idempotencyKey}
       />
 
-      {isTreasurer && (
+      {canSelectMember && (
         <div>
           <label
             htmlFor="contribution-member"
@@ -100,6 +101,8 @@ export default function ContributionForm(props: Props) {
             value={memberId}
             onChange={event => setMemberId(event.target.value)}
             required
+            aria-invalid={Boolean(state.fieldErrors?.memberId)}
+            aria-describedby={state.fieldErrors?.memberId ? 'contribution-member-error' : undefined}
             className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"
           >
             <option value="">Select a member</option>
@@ -109,6 +112,7 @@ export default function ContributionForm(props: Props) {
               </option>
             ))}
           </select>
+          {state.fieldErrors?.memberId && <p id="contribution-member-error" aria-live="polite" className="mt-1 text-sm text-red-700">{state.fieldErrors.memberId}</p>}
         </div>
       )}
 
@@ -128,9 +132,12 @@ export default function ContributionForm(props: Props) {
           required
           value={amount}
           onChange={event => setAmount(event.target.value)}
+          aria-invalid={Boolean(state.fieldErrors?.amount)}
+          aria-describedby={state.fieldErrors?.amount ? 'contribution-amount-error contribution-amount-help' : 'contribution-amount-help'}
           className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-slate-900"
         />
-        <p className="mt-1 text-xs text-slate-500">
+        {state.fieldErrors?.amount && <p id="contribution-amount-error" aria-live="polite" className="mt-1 text-sm text-red-700">{state.fieldErrors.amount}</p>}
+        <p id="contribution-amount-help" className="mt-1 text-xs text-slate-500">
           Outstanding amount: {money(props.amountOwedCents)}
         </p>
       </div>

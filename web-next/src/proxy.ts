@@ -77,7 +77,16 @@ export async function proxy(request: NextRequest) {
   if (!protectedRoute) return NextResponse.next();
 
   const expiredJson = () => {
-    const response = NextResponse.json({ title: 'Your session has ended.' }, { status: 401 });
+    const response = NextResponse.json(
+      { title: 'Your session has ended.' },
+      {
+        status: 401,
+        headers: {
+          'Cache-Control': 'no-store',
+          'X-Robots-Tag': 'noindex, nofollow, noarchive'
+        }
+      }
+    );
     response.cookies.delete(SESSION_COOKIE);
     return response;
   };

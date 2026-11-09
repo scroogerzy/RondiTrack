@@ -1,6 +1,16 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  async headers() {
+    return [{
+      source: '/bff/:path*',
+      headers: [
+        { key: 'Cache-Control', value: 'private, no-store' },
+        { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        { key: 'X-Content-Type-Options', value: 'nosniff' }
+      ]
+    }];
+  },
   reactCompiler: true,
   // Cache Components keeps uncached user-specific data out of shared caches.
   cacheComponents: true,

@@ -298,3 +298,106 @@ The code remains in the URL. The login return path is same-site validated by the
 - Stokvel rules are now persisted and editable by the stokvel treasurer. Existing groups migrate with an empty rules value until their managers add the actual group rules.
 - The proof bytes are stored in PostgreSQL for this assignment implementation. A production deployment should move binary objects to private object storage while retaining the same authorization and streaming BFF contract.
 - The assignment's full cross-browser stale-preview recording and backend integration suite must be run in the Codespace against PostgreSQL before merging.
+
+
+## Assignment 9.2 — Tests, performance, accessibility and privacy
+
+### Test boundaries and coverage
+
+| Layer | Tool | What is covered |
+|---|---|---|
+| Pure domain helpers | Vitest | Rand parsing/formatting, Johannesburg date boundaries, role-aware target selection, and join-flow parsing/transitions |
+| Server Action boundary | Vitest with mocked API boundary | Invalid input, integer-cent request contract, success, 403, 409, 422, 429, network failure, idempotency-key reuse, and new-key generation after payload changes |
+| Browser and route behaviour | Playwright | Login/register labels, signed-out redirects for protected routes, BFF JSON 401/privacy headers, robots/sitemap exclusion, and public-page axe scans |
+| API integration | .NET integration tests | Real API authorization, contribution idempotency, duplicate protection, refresh-token rotation, and rate-limit behaviour against the PostgreSQL fixture |
+| Manual accessibility | Keyboard and screen reader | Focus order/visibility, focus not obscured, field error announcement, dialog behaviour, target size, and end-to-end task completion |
+
+The API is the security boundary. Hiding the member selector for an ordinary member is a usability rule only; the API independently authorizes the target member. The API allows a member to record for themself and a Treasurer or Chairperson to record for another member in the same stokvel. `canRecordForAnotherMember` keeps that UI rule centralized and tested.
+
+### Money and date rules
+
+`parseRandsToCents` accepts ungrouped rand values, correctly grouped ordinary/NBSP thousands separators, an optional `R` prefix, and decimal comma or decimal point with at most two decimal places. It returns integer cents or `null`; it never rounds. Ambiguous mixed decimal/grouping formats, negatives, malformed grouping and unsafe integer values are rejected. `centsToInput` formats cents without floating-point multiplication.
+
+Johannesburg date filters are calendar dates converted to a half-open UTC range. SAST is UTC+02:00. Run the suite in both host timezones:
+
+```bash
+cd web-next
+npm ci
+npm run test:utc
+npm run test:sast
+npm run test:repeat
+```
+
+### Contribution action contract
+
+`src/app/(app)/stokvels/[id]/actions.test.ts` exercises the Server Action with a mocked API boundary. It verifies that `R150.50` is sent as `15050` integer cents; a successful request rotates the key; unchanged payload retries retain the key after 403/409/422/429 or an unknown network outcome; invalid values do not reach the API; and a changed amount creates a new key. The browser sends the action state key; the Server Action owns the effective key and never trusts a browser-supplied replacement.
+
+The live API integration suite remains the authority for replay semantics, same-key changed-body conflict, missing-key rejection, duplicate requests with a new key, rate-limit-then-retry, and durable behaviour. The API idempotency store is currently in-memory, so replay records are not durable across process restart or shared between API replicas. The database uniqueness constraint remains a second line of duplicate protection.
+
+### Browser tests
+
+Install Chromium once and run the browser suite against a production build:
+
+```bash
+cd web-next
+npx playwright install chromium
+npm run build
+npm run test:e2e
+npm run test:e2e:repeat
+```
+
+`playwright.config.ts` starts the production Next.js server automatically. The Playwright suite covers public auth form labels, signed-out access to protected routes, the BFF activity 401 response (`application/json`, `no-store`, `X-Robots-Tag: noindex`), robots/sitemap route exclusion, and axe scans of login and registration. The browser suite does not currently create seeded Treasurer/member accounts or prove the full live contribution journey; those remain runtime integration evidence and must not be inferred from the public-route tests.
+
+### Accessibility
+
+- Login and registration controls have visible labels and browser autocomplete tokens.
+- Contribution success/refusal feedback uses status/alert semantics; field errors are associated with their controls and announced politely.
+- Join-step headings receive focus when the step changes.
+- The close-cycle dialog has an accessible name/description, traps Tab focus, closes on Escape when not submitting, and restores focus to its trigger.
+- No drag-and-drop interaction is present. If one is introduced, add a keyboard-operable alternative such as Move up/Move down controls or a position selector and announce the result.
+- Automated axe scans are limited to the two public auth pages. Manual keyboard and screen-reader checks are still required for the authenticated contribution, proof, join, close-cycle and payout flows. Axe passing does not establish full WCAG 2.2 AA conformance.
+
+### Performance
+
+Do not report unmeasured Lighthouse or Web Vitals values. Build and start the production server, then run three mobile Lighthouse measurements for each route:
+
+```bash
+cd web-next
+npm run build
+npm run start
+# In another terminal, from web-next:
+npm run performance:lighthouse -- http://127.0.0.1:3000/login
+```
+
+The script uses Lighthouse mobile simulation and 4x CPU slowdown, saves three JSON reports under `artifacts/lighthouse/`, and writes `median-summary.json` with median performance score, LCP and CLS. Compare the median to LCP < 2.5 seconds and CLS < 0.1. Repeat against a seeded, authenticated stokvel route; do not substitute the public login result for an authenticated page. INP requires a real interaction/field measurement and is not inferred from the Lighthouse lab report. Capture a contribution interaction and close-dialog interaction using field Web Vitals or an approved browser measurement, and record the environment and throttling conditions.
+
+Private proof files must never pass through the public Next.js image optimizer. Proof responses remain authenticated and `private, no-store`.
+
+### Metadata, privacy and indexing
+
+- `/login` and `/register` are public routes.
+- `/join/[code]` declares `noindex`; its title, description and Open Graph text are generic and must not contain the invite code, stokvel name, member names or amounts.
+- The authenticated route group is `noindex`.
+- BFF JSON responses are `no-store` and return `X-Robots-Tag: noindex, nofollow, noarchive`.
+- `robots.txt` allows crawlers to fetch routes so they can observe `noindex`; it does not disallow signed-in routes.
+- The sitemap only lists public login/register routes when `NEXT_PUBLIC_SITE_URL` is configured.
+
+### CI and evidence status
+
+The GitHub Actions frontend job installs dependencies, runs lint/type generation/type-check, runs Vitest in UTC and Johannesburg, builds the production app, installs Chromium, and runs Playwright. The Playwright HTML report and failure traces are uploaded as a workflow artifact. The .NET job restores, builds and runs the API test suite; the Docker job builds the API image.
+
+Evidence captured from the Codespaces run on 9 November 2026:
+
+- 76/76 Vitest tests passed under UTC.
+- 76/76 Vitest tests passed under `Africa/Johannesburg`.
+- All 11 Playwright tests passed, including protected-route redirects, BFF unauthenticated response/privacy checks, robots/sitemap checks, and automated axe scans of login and registration.
+- ESLint passed.
+- Next.js route type generation passed.
+- TypeScript `tsc --noEmit` passed.
+- The Next.js production build passed.
+- Three mobile Lighthouse runs completed against the public `/login` page using simulated mobile throttling and a 4x CPU slowdown. Median Performance score: 91; median LCP: 2,527 ms; median CLS: 0.000. The LCP target of 2,500 ms was missed by 27 ms. The CLS target of 0.1 was met.
+- The Lighthouse results measure the public login page only; they are not evidence of authenticated dashboard or contribution-page performance.
+
+The detailed Lighthouse JSON reports and median summary were generated under `artifacts/lighthouse/`. That directory is Git-ignored; the tracked summary is documented in `docs/evidence/assignment-9.2/lighthouse-summary.md`.
+
+Still outstanding: seeded Treasurer/member UI tests and the full authenticated contribution journey; live API 401/403/429 and idempotency replay evidence; manual keyboard and screen-reader evidence for authenticated flows; authenticated-route Lighthouse measurements and real-interaction INP measurement; and a successful CI run with red/green evidence. Do not mark these deliverables complete until the corresponding evidence is captured.
