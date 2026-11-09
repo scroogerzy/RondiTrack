@@ -4,6 +4,9 @@ import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/session';
 import LogoutButton from '@/components/LogoutButton';
 import PinnedStokvels from '@/components/PinnedStokvels';
+import type { Metadata } from 'next';
+
+export const metadata: Metadata = { robots: { index: false, follow: false, noarchive: true } };
 
 async function SignedInSidebar() {
   const session = await getSession();

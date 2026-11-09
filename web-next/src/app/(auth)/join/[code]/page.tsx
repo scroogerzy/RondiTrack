@@ -7,6 +7,20 @@ import { apiUrl } from '@/lib/api';
 import { joinStokvelAction } from './actions';
 import { joinFlowFromUrl, joinStepNumber, transitionJoinFlow } from '@/lib/joinFlow';
 import JoinStepHeading from './JoinStepHeading';
+import type { Metadata } from 'next';
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    title: 'Stokvel invitation | RondiTrack',
+    description: 'Review a RondiTrack stokvel invitation.',
+    robots: { index: false, follow: false, noarchive: true },
+    openGraph: {
+      title: 'Stokvel invitation | RondiTrack',
+      description: 'You have been invited to review a stokvel invitation.',
+      type: 'website'
+    }
+  };
+}
 
 type Preview = { stokvelId: string; stokvelName: string; rules: string; contributionAmount: number; schedule: string; memberCount: number };
 

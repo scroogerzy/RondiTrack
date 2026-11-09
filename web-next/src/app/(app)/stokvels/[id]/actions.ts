@@ -14,7 +14,8 @@ const contributionSchema = z.object({
   userId: uuid,
   amount: z.string().trim().min(1).max(20).refine(value => {
     try {
-      return parseRandsToCents(value) > 0;
+      const cents = parseRandsToCents(value);
+      return cents !== null && cents > 0;
     } catch {
       return false;
     }
@@ -28,6 +29,7 @@ export type ContributionActionResult = {
   amount: string;
   memberId: string;
   idempotencyKey: string;
+  fieldErrors?: { amount?: string; memberId?: string };
 };
 
 export async function recordContributionAction(
@@ -56,13 +58,16 @@ export async function recordContributionAction(
       message: parsed.error.issues[0]?.message ?? 'Check the contribution details.',
       amount,
       memberId,
-      idempotencyKey
+      idempotencyKey,
+      fieldErrors: { amount: parsed.error.issues[0]?.message ?? 'Enter a valid amount.' }
     };
   }
 
   let amountInCents: number;
   try {
-    amountInCents = parseRandsToCents(parsed.data.amount);
+    const cents = parseRandsToCents(parsed.data.amount);
+    if (cents === null || cents <= 0) throw new RangeError('Invalid amount.');
+    amountInCents = cents;
   } catch {
     return {
       success: false,
@@ -91,6 +96,23 @@ export async function recordContributionAction(
         response.headers.get('x-correlation-id') ||
         undefined;
 
+      const apiErrors = body?.errors && typeof body.errors === 'object'
+        ? body.errors as Record<string, unknown>
+        : {};
+      const fieldErrors: { amount?: string; memberId?: string } = {};
+      for (const [field, messages] of Object.entries(apiErrors)) {
+        const messageValue = Array.isArray(messages) ? messages[0] : messages;
+        if (typeof messageValue !== 'string') continue;
+        const normalized = field.replace(/[^a-z]/gi, '').toLowerCase();
+        if (normalized === 'amount' || normalized === 'amountincents') fieldErrors.amount = messageValue;
+        if (normalized === 'userid' || normalized === 'memberid') fieldErrors.memberId = messageValue;
+      }
+
+      const retryAfter = response.headers.get('retry-after');
+      const retryDelay = retryAfter && /^\d+$/.test(retryAfter)
+        ? ` Wait ${retryAfter} seconds before retrying this contribution.`
+        : ' Wait before retrying this contribution.';
+
       const message =
         response.status === 403
           ? 'You are not authorised to record a contribution for this member. You are still signed in.'
@@ -99,7 +121,7 @@ export async function recordContributionAction(
             : response.status === 422
               ? body?.detail || 'The contribution or cycle is not valid.'
               : response.status === 429
-                ? 'Too many requests. Wait before retrying this contribution.'
+                ? `Too many requests.${retryDelay}`
                 : body?.detail || body?.title || 'The contribution could not be recorded.';
 
       return {
@@ -108,7 +130,8 @@ export async function recordContributionAction(
         reference,
         amount,
         memberId,
-        idempotencyKey
+        idempotencyKey,
+        fieldErrors: Object.keys(fieldErrors).length ? fieldErrors : undefined
       };
     }
 

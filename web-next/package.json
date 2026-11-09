@@ -7,7 +7,15 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:utc": "TZ=UTC vitest run",
+    "test:sast": "TZ=Africa/Johannesburg vitest run",
+    "test:repeat": "for run in 1 2 3 4 5 6 7 8 9 10; do echo \"Vitest run $run/10\"; vitest run || exit 1; done",
+    "test:repeat:utc": "for run in 1 2 3 4 5 6 7 8 9 10; do echo \"Vitest UTC run $run/10\"; TZ=UTC vitest run || exit 1; done",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:repeat": "for run in 1 2 3; do echo \"Playwright run $run/3\"; playwright test || exit 1; done",
+    "performance:lighthouse": "node scripts/lighthouse-median.mjs"
   },
   "dependencies": {
     "@tanstack/react-query": "5.104.2",
@@ -21,6 +29,8 @@
     "zustand": "5.0.15"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.65.0",
     "@tailwindcss/postcss": "4.3.3",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "22.15.30",
