@@ -26,6 +26,7 @@ public class RondiTrackDbContext : DbContext
     public DbSet<StokvelInvite> StokvelInvites => Set<StokvelInvite>();
     public DbSet<ContributionProof> ContributionProofs => Set<ContributionProof>();
     public DbSet<CycleCloseReceipt> CycleCloseReceipts => Set<CycleCloseReceipt>();
+    public DbSet<IdempotencyEntry> IdempotencyEntries => Set<IdempotencyEntry>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -296,6 +297,28 @@ public class RondiTrackDbContext : DbContext
             })
             .IsUnique()
             .HasDatabaseName("UX_ArrearRecords_StokvelId_UserId_CyclePeriodNumber");
+        });
+
+        modelBuilder.Entity<IdempotencyEntry>(entity =>
+        {
+            entity.ToTable("IdempotencyEntries");
+            entity.HasKey(item => item.IdempotencyKey);
+            entity.Property(item => item.IdempotencyKey)
+                .HasColumnName("IdempotencyKey")
+                .HasMaxLength(128)
+                .IsRequired();
+            entity.Property(item => item.RequestHash)
+                .HasColumnName("RequestHash")
+                .HasMaxLength(64)
+                .IsRequired();
+            entity.Property(item => item.ResponseJson)
+                .HasColumnName("ResponseJson")
+                .HasColumnType("text");
+            entity.Property(item => item.CreatedAtUtc)
+                .HasColumnName("CreatedAtUtc")
+                .HasColumnType("timestamp with time zone")
+                .IsRequired();
+            entity.HasIndex(item => item.CreatedAtUtc);
         });
 
         base.OnModelCreating(modelBuilder);

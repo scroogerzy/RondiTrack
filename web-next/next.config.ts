@@ -1,4 +1,7 @@
 import type { NextConfig } from "next";
+import { withSentryConfig } from "@sentry/nextjs";
+
+const trustedServerActionOrigin = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").host;
 
 const nextConfig: NextConfig = {
   async headers() {
@@ -16,6 +19,7 @@ const nextConfig: NextConfig = {
   cacheComponents: true,
   partialPrefetching: true,
   typedRoutes: false,
+  output: "standalone",
 
   allowedDevOrigins: [
     "repulsive-werewolf-7vjrgqqp9vrv3wr6w-3000.app.github.dev",
@@ -25,12 +29,20 @@ const nextConfig: NextConfig = {
     proxyClientMaxBodySize: '10mb',
     serverActions: {
       bodySizeLimit: '1mb',
-      allowedOrigins: [
-        "repulsive-werewolf-7vjrgqqp9vrv3wr6w-3000.app.github.dev",
-        "localhost:3000",
-      ],
+      allowedOrigins: [trustedServerActionOrigin],
     },
   },
 };
 
-export default nextConfig;
+const sentryBuildOptions = {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: !process.env.CI,
+  sourcemaps: { deleteSourcemapsAfterUpload: true },
+  telemetry: false,
+};
+
+export default process.env.SENTRY_AUTH_TOKEN
+  ? withSentryConfig(nextConfig, sentryBuildOptions)
+  : nextConfig;

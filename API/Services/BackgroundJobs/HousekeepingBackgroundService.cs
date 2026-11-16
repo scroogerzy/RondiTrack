@@ -44,7 +44,7 @@ public sealed class HousekeepingBackgroundService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Housekeeping run failed; it will retry next interval.");
+                _logger.LogError("Housekeeping run failed. ExceptionType: {ExceptionType}; it will retry next interval.", ex.GetType().Name);
             }
 
             try

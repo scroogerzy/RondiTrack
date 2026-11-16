@@ -1,3 +1,4 @@
+using Sentry;
 
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
@@ -43,10 +44,17 @@ public sealed class ExceptionHandlingMiddleware
             context.Items["X-Correlation-ID"]?.ToString()
             ?? Guid.NewGuid().ToString();
 
+        // Do not log exception.Message or the exception object: either may contain
+        // member names, amounts, credentials, or request data.
         _logger.LogError(
-            exception,
-            "Request failed. CorrelationId: {CorrelationId}",
+            "Request failed. ExceptionType: {ExceptionType}. TraceId: {TraceId}",
+            exception.GetType().Name,
             correlationId);
+
+        SentrySdk.CaptureException(exception, scope =>
+        {
+            scope.SetTag("trace_id", correlationId);
+        });
 
         var postgresException = FindPostgresException(exception);
 

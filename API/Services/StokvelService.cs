@@ -226,44 +226,47 @@ public class StokvelService : IStokvelService
                 request.Cycle);
         }
 
-        // Reserve the key before attempting to store the contribution.
-        var reserved =
-            await _idempotencyStore.TryReserveAsync(idempotencyKey);
-
-        if (!reserved)
+        // Reserve the key, persist the contribution, and persist its replay
+        // response atomically. A failed transaction rolls all three back.
+        return await _idempotencyStore.ExecuteAtomicallyAsync<RecordContributionResult>(async () =>
         {
-            var reservedRecord =
-                await _idempotencyStore.FindAsync(idempotencyKey);
+            var reserved = await _idempotencyStore.TryReserveAsync(
+                idempotencyKey,
+                requestHash);
 
-            if (reservedRecord is null ||
-                reservedRecord.ResponseBody is null ||
-                reservedRecord.RequestHash != requestHash)
+            if (!reserved)
             {
-                return new RecordContributionResult.KeyConflict(
-                    idempotencyKey);
+                var reservedRecord =
+                    await _idempotencyStore.FindAsync(idempotencyKey);
+
+                if (reservedRecord is null ||
+                    reservedRecord.ResponseBody is null ||
+                    reservedRecord.RequestHash != requestHash)
+                {
+                    return new RecordContributionResult.KeyConflict(
+                        idempotencyKey);
+                }
+
+                return new RecordContributionResult.ReplayedFromCache(
+                    reservedRecord.ResponseBody);
             }
 
-            return new RecordContributionResult.ReplayedFromCache(
-                reservedRecord.ResponseBody);
-        }
+            var contribution = new Contribution(
+                stokvelId,
+                userId,
+                request.Cycle,
+                request.Amount);
 
-        var contribution = new Contribution(
-            stokvelId,
-            userId,
-            request.Cycle,
-            request.Amount);
+            await _contributionRepository.AddAsync(contribution);
 
-        await _contributionRepository.AddAsync(contribution);
+            var response = contribution.ToResponse(cycle.Id);
 
-        var response = contribution.ToResponse(cycle.Id);
+            await _idempotencyStore.SaveAsync(
+                idempotencyKey,
+                new IdempotencyRecord(requestHash, response));
 
-        await _idempotencyStore.SaveAsync(
-            idempotencyKey,
-            new IdempotencyRecord(
-                requestHash,
-                response));
-
-        return new RecordContributionResult.Recorded(response);
+            return new RecordContributionResult.Recorded(response);
+        });
     }
 
     /// <summary>
