@@ -2028,3 +2028,16 @@ Verification run date: 2026-11-16
 | Whitespace and patch check | PASS |
 
 This local verification record does not claim a production deployment. See Known gaps and hand-in evidence above for cloud deployment, live URLs, Sentry/trace evidence, rollback rehearsal and demo recording still requiring external platform setup or capture.
+
+### Follow-up verification — 2026-11-17
+
+| Check | Result |
+|---|---|
+| API liveness endpoint | PASS (HTTP 200) |
+| API readiness endpoint | PASS (HTTP 200) |
+| OpenAPI export | PASS |
+| OpenAPI contract drift check | PASS |
+| Frontend API type generation | PASS |
+| Next.js Docker image build | PASS (`ronditrack-web:9.3`) |
+
+The API and PostgreSQL connection was verified in the Codespaces environment using the Codespaces Compose network override. This does not resolve or replace the outstanding migration exit 139, Playwright E2E, or production dependency audit failures recorded above. Production deployment and Demo Day evidence remain pending.
