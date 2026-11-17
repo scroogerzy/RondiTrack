@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 import { withSentryConfig } from "@sentry/nextjs";
 
-const trustedServerActionOrigin = new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000").host;
+const trustedServerActionOrigin = new URL(process.env.NEXT_PUBLIC_SITE_URL || "http://localhost:3000").host;
 
 const nextConfig: NextConfig = {
   async headers() {
