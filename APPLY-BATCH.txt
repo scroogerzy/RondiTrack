@@ -1,0 +1,20 @@
+RondiTrack Assignment 10.1 consolidated mobile batch
+
+Copy the contents of this archive into the root of your existing RondiTrack
+repository, preserving the mobile/ and .github/ paths. Allow files to overwrite.
+Do not copy any source ZIP or context TXT files into Git.
+
+Then, from the repository root:
+  git status --short
+  cd mobile
+  ./run-assignment-10-1-checks.sh
+
+The source was prepared in a Linux container without Flutter/Dart or Xcode.
+The script regenerates Freezed/Riverpod outputs before analysis. Review and
+commit the regenerated *.freezed.dart and *.g.dart files after the script runs.
+
+Known not-complete items are explicitly listed in mobile/README.md. In
+particular, iOS schemes/bundle identifiers require Xcode on macOS, and the
+assignment's full detail models/screens, family stale-frame tests, provider
+disposal proof, and red/green CI evidence still need completion. Do not claim
+those are complete based on this batch.
