@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace RondiTrack.Middleware;
 
 /// <summary>
@@ -18,9 +20,9 @@ public sealed class CorrelationIdMiddleware
     public async Task InvokeAsync(
         HttpContext context)
     {
-        var correlationId =
-            context.Request.Headers[HeaderName].FirstOrDefault()
-            ?? Guid.NewGuid().ToString();
+        var correlationId = Activity.Current?.TraceId.ToString();
+        if (string.IsNullOrWhiteSpace(correlationId))
+            correlationId = ActivityTraceId.CreateRandom().ToString();
 
         context.Items[HeaderName] = correlationId;
 

@@ -204,6 +204,51 @@ public sealed class AuthenticationTests
         Assert.Equal(HttpStatusCode.Conflict, second.StatusCode);
     }
 
+    [Fact]
+    public async Task LoginRateLimit_IsIsolatedByNormalizedMemberEmail()
+    {
+        using var client = _factory.CreateUnauthenticatedClient();
+        var firstEmail = $"throttle-a-{Guid.NewGuid():N}@example.test";
+        var secondEmail = $"throttle-b-{Guid.NewGuid():N}@example.test";
+        const string password = "a-long-test-password-123";
+
+        foreach (var email in new[] { firstEmail, secondEmail })
+        {
+            var registration = await client.PostAsJsonAsync("/api/v1/auth/register", new
+            {
+                fullName = "Rate Limit Test User",
+                email,
+                password
+            });
+            Assert.Equal(HttpStatusCode.Created, registration.StatusCode);
+        }
+
+        for (var attempt = 0; attempt < 5; attempt++)
+        {
+            var rejected = await client.PostAsJsonAsync("/api/v1/auth/login", new
+            {
+                email = firstEmail,
+                password = "wrong-password"
+            });
+            Assert.Equal(HttpStatusCode.Unauthorized, rejected.StatusCode);
+        }
+
+        var blocked = await client.PostAsJsonAsync("/api/v1/auth/login", new
+        {
+            email = firstEmail,
+            password = "wrong-password"
+        });
+        Assert.Equal(HttpStatusCode.TooManyRequests, blocked.StatusCode);
+        Assert.True(blocked.Headers.Contains("Retry-After"));
+
+        var otherMember = await client.PostAsJsonAsync("/api/v1/auth/login", new
+        {
+            email = secondEmail,
+            password
+        });
+        Assert.Equal(HttpStatusCode.OK, otherMember.StatusCode);
+    }
+
     private static string ReadRefreshCookie(HttpResponseMessage response)
     {
         var header = response.Headers.GetValues("Set-Cookie")

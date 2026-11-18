@@ -15,10 +15,14 @@
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:e2e:repeat": "for run in 1 2 3; do echo \"Playwright run $run/3\"; playwright test || exit 1; done",
-    "performance:lighthouse": "node scripts/lighthouse-median.mjs"
+    "performance:lighthouse": "node scripts/lighthouse-median.mjs",
+    "api:types": "openapi-typescript ../openapi/v1.json -o src/types/api.d.ts"
   },
   "dependencies": {
+    "@opentelemetry/api": "1.9.0",
+    "@sentry/nextjs": "10.78.0",
     "@tanstack/react-query": "5.104.2",
+    "@vercel/otel": "2.1.3",
     "jose": "6.1.3",
     "next": "16.4.1",
     "nuqs": "2.10.2",
@@ -39,6 +43,7 @@
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "9.39.5",
     "eslint-config-next": "16.4.1",
+    "openapi-typescript": "7.13.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vitest": "5.0.5"

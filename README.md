@@ -1809,3 +1809,235 @@ The following behaviours must be confirmed against the running API before the im
 - Login and refresh responses must provide the expected access-token fields and refresh-token cookies.
 - Refresh-token rotation must be handled correctly when the API issues a replacement cookie.
 - Stokvel detail responses provide a member count. Current-cycle totals are obtained
+
+# Assignment 9.3 — Deploy & Demo Day
+
+> **Deployment status:** Repository preparation is in progress. Public production URLs,
+> provider resources, Sentry event evidence, CI red/green drift demonstrations, rollback
+> drill and the four-minute Demo Day recording must be added after the corresponding
+> platform actions have actually been performed. Do not treat placeholders as live evidence.
+
+## Production plan
+
+1. **Runtime and region (proposed):** Run the Next.js server and the API as separate
+   containers on Amazon ECS with AWS Fargate in `af-south-1` (Africa/Cape Town), and use
+   Amazon RDS for PostgreSQL in the same region/private network. AWS lists RDS and Linux
+   Fargate support in this region ([RDS regions](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/Concepts.RegionsAndAvailabilityZones.html),
+   [Fargate regions](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate-Regions.html)).
+   The region is opt-in ([AWS region table](https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions.html))
+   and must be enabled in the AWS account before provisioning. Confirm account availability,
+   quotas and cost limits before deployment.
+2. **Settings:** Set values in local `.env` files (ignored by Git) and in the relevant
+   platform's secret/configuration store in production. API secrets are readable only by
+   the API task role; Next.js session and Sentry build secrets are readable only by the
+   frontend build/runtime roles; CI source-map credentials are GitHub Actions secrets.
+   Names are listed below; values are never committed here.
+3. **Startup and jobs:** Production API startup does not apply migrations or seed demo
+   members. Run `scripts/deploy-migrate.sh` once as a deployment task before routing traffic.
+   Development/test startup retains local migrations and sample data. Cycle closing uses a
+   PostgreSQL conditional update inside a transaction; only the instance that claims the
+   open cycle proceeds. Housekeeping is idempotent, though it may run on more than one
+   replica. Never seed production with the local demo identities.
+4. **Proxy and client IP:** The browser talks only to the Next.js BFF. The API is private
+   behind the platform network/load balancer; production CORS remains closed by leaving
+   `Cors:AllowedOrigins` unset entirely. Do not trust arbitrary forwarded headers. Login rate
+   limiting uses a SHA-256 partition derived from the normalized login identity, not the
+   shared Next.js egress IP; the raw email is not stored in the limiter key or logs. The
+   in-process limiter is per API replica; use a shared gateway/distributed limiter if
+   cross-replica aggregate quotas are required.
+5. **Proofs:** Proof bytes are stored in PostgreSQL (`bytea`) through the
+   `ContributionProofs` table, not on API container disk. They survive an API image
+   redeploy only when the managed database persists. Enable encrypted automated backups,
+   retention and restore tests; database loss still requires a restore. Downloads remain
+   authenticated through the BFF with `private, no-store` and `nosniff`.
+6. **Rollback:** Roll the frontend and API back to their previous immutable image/revision.
+   Do not automatically run `Down()` migrations against financial data. Use additive,
+   expand/contract migrations; take a database snapshot before schema changes. Restore a
+   snapshot only under the incident procedure and verify it in a separate database first.
+   Record actual rollback duration after a rehearsal.
+
+## Live
+
+- Frontend URL: **Pending deployment**
+- API URL: **Pending deployment** (health endpoints: `/health/live`, `/health/ready`)
+- Demo accounts: create synthetic accounts only after deployment, with long random passwords
+  stored in the platform secret manager. Add display names only after those accounts exist.
+- Never use real member or bank data in the demo environment.
+
+## Settings
+
+| Name | Local location | Production location | Reader |
+|---|---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | root `.env` (`Development`) | API task setting (`Production`) | API process |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD` | root `.env` for local Compose | RDS database and API secret store | database/API only |
+| `ConnectionStrings__RondiTrack` | root `.env` | API task secret store | API only |
+| `Jwt__SigningKey` | root `.env` / user secrets | API secret store | API only |
+| `CycleClose__IntervalSeconds` | root `.env` | API task config | API only |
+| `Housekeeping__IntervalSeconds`, `Housekeeping__RefreshTokenRetentionDays`, `Housekeeping__IdempotencyRetentionHours` | root `.env` | API task config | API only |
+| `Cors__AllowedOrigins__0` | root `.env` only for local browser-to-API development | omit entirely for BFF-only production | API only |
+| `API_BASE_URL` | `web-next/.env.local` | Next.js task environment | Next.js server only |
+| `NEXT_PUBLIC_SITE_URL` | `web-next/.env.local` | Next.js build/runtime config | Next.js server and Server Actions |
+| `SESSION_SECRET` | `web-next/.env.local` | Next.js secret store | Next.js server only |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | local collector config | API and Next.js task config | server processes only |
+| `Sentry__Dsn`, `SENTRY_DSN` | local environment | API/Next.js secret/config store | respective server runtime |
+| `Sentry__Release`, `SENTRY_RELEASE`, `NEXT_PUBLIC_SENTRY_RELEASE` | local environment | build/runtime config | API/Next.js |
+| `NEXT_PUBLIC_SENTRY_DSN` | `web-next/.env.local` | frontend build/runtime config | public DSN only; never an auth secret |
+| `SENTRY_AUTH_TOKEN` | not committed; secret store | CI/build secret | source-map upload step only |
+| `SENTRY_ORG`, `SENTRY_PROJECT` | local environment | CI/build configuration | deployment tooling |
+
+Do not prefix secrets with `NEXT_PUBLIC_`. The Sentry DSN is a public project identifier,
+not an authentication token; `SENTRY_AUTH_TOKEN` must remain server-side and build-secret-only.
+
+## Errors
+
+| Status | What the member sees | Next action | Owner/layer |
+|---|---|---|---|
+| 401 | Session ended | Sign in and return to the same safe local path | Next.js BFF/session; API Problem Details |
+| 403 | Permission message in place | Stay signed in; ask a treasurer | API authorization + page/action state |
+| 404 | Same not-found page for missing or inaccessible resource | Return to stokvel list | API authorization/resource policy + Next not-found |
+| 409 / 422 | Conflict or validation reason | Keep input, reload current state and decide again | API Problem Details + form state |
+| 429 | Retry-after message | Wait the `Retry-After` seconds | API rate limiter + BFF |
+| 500 / no answer | Generic apology and safe trace reference when available | Retry or contact support with the reference | API exception middleware / Next error boundary |
+
+The API already returns Problem Details for rate limiting with `Retry-After` and a correlation
+reference. The BFF is the only browser-facing API path; do not add direct browser-to-API calls.
+Verify each status on the deployed app and retain Playwright evidence before marking it complete.
+
+## Observability
+
+- Next.js registers `ronditrack-web` OpenTelemetry instrumentation and propagates W3C
+  `traceparent` only to `API_BASE_URL`. The API ASP.NET Core instrumentation continues the
+  trace; Npgsql instrumentation emits PostgreSQL spans. Configure an OTLP collector and
+  `OTEL_EXPORTER_OTLP_ENDPOINT` on both server workloads.
+- The API uses the active W3C trace ID as `X-Correlation-ID` in Problem Details and response
+  headers. Cycle-close starts a separate background Activity and writes its South African
+  local timestamp to logs.
+- Sentry is optional until a DSN is configured. Both Next.js and ASP.NET Core set
+  `sendDefaultPii` / `SendDefaultPii` to false. SDK before-send hooks remove user and request
+  objects, request headers/cookies/query/body, breadcrumbs, extras and message text; exception
+  values are replaced with a generic message while stack frames remain. The API preserves
+  only the `trace_id` tag as the cross-system reference. Enable Sentry's server-side data
+  scrubbing and PII filtering as a project-level backstop before sending real events.
+- Evidence still required: inspect a real trace containing web, API and PostgreSQL spans;
+  inspect both idempotent retry traces; inspect a cycle-close trace; capture and review a real
+  Sentry event JSON field-by-field. No such live evidence is claimed by this README yet.
+
+## Deploy and roll back
+
+1. Provision RDS PostgreSQL in a private subnet, encrypted with automated backups and a
+   documented retention/restore policy.
+2. Build and publish immutable API and Next.js container images. Keep the API accessible only
+   from the frontend task and trusted operations network. Terminate TLS at the load balancer.
+3. Set each setting above in the proper task/secret configuration. Use different secrets for
+   preview and production. Configure Sentry server-side scrubbing and the OTLP collector.
+4. Run a one-off ECS task from the API image with command argument `--migrate-only`, using the
+   same database secret and network configuration as the API service. Wait for successful
+   completion. `scripts/deploy-migrate.sh` is the equivalent helper for local Compose.
+5. Deploy API tasks, then Next.js tasks. Configure readiness checks against `/health/ready`
+   and liveness against `/health/live`; route traffic only to healthy tasks.
+6. Confirm CORS sends no `Access-Control-Allow-Origin` for a foreign `Origin`, confirm the
+   BFF sign-in/refresh path across the two domains, upload/download a proof across an API
+   redeploy, and confirm a failure reference resolves to its trace.
+7. Roll back by selecting the prior immutable task/image revision. Keep the additive database
+   schema compatible with both old and new application versions. Restore a database snapshot
+   only through the approved recovery plan; record the rollback rehearsal time.
+
+For local API migration: `docker compose run --build --rm api --migrate-only`.
+For local contract regeneration: start the API, then run
+`API_BASE_URL=http://localhost:8080 ./scripts/export-openapi.sh` and
+`cd web-next && npm run api:types`.
+For the CI contract check: `API_BASE_URL=http://localhost:8080 ./scripts/check-openapi.sh`.
+
+## Runbook
+
+**A member quotes a reference:** confirm the reference is a trace ID; search the configured
+trace backend; inspect the Next.js, API and database spans; check the API's redacted logs; use
+Sentry's matching `trace_id` tag if an error event exists. Never ask the member to send a token,
+cookie, bank statement or full request body.
+
+**Nobody can sign in:** check frontend/API readiness, API authentication errors and the
+account-specific login limiter; verify the Next.js BFF can reach the private API; confirm
+`SESSION_SECRET`, JWT signing key and refresh-cookie domain/path/secure settings are configured
+in their respective secret stores. Do not loosen CORS or trust arbitrary forwarded headers.
+
+**The cycle did not close:** check the cycle end date as `Africa/Johannesburg`, inspect the
+`RondiTrack.CycleClose` trace and South African timestamp, check API logs and database
+readiness, then inspect whether another instance already claimed the cycle. The conditional
+claim prevents duplicate closure; retry only after understanding the transaction failure.
+
+## Decisions
+
+- **BFF:** browser holds no API bearer token; server-side Next.js calls the API. This avoids
+  cross-site API refresh cookies and keeps the API private.
+- **Closed CORS:** the browser calls only its own Next.js origin, so production API CORS remains
+  closed rather than using `*` or broad origins.
+- **Uniform 404:** an inaccessible resource and a nonexistent resource are intentionally
+  indistinguishable to prevent resource enumeration.
+- **Refresh grace:** retain the existing refresh-token rotation/grace behavior; test it across
+  the deployed domains instead of changing it as part of deployment work.
+- **Login throttling:** partition on a one-way hash of normalized email because requests arrive
+  from the shared Next.js server address. The raw identity is not used as a key or logged.
+- **Migrations:** production schema changes are a one-off deploy task, not an action every API
+  replica performs on startup.
+
+## Known gaps and hand-in evidence
+
+- Production AWS resources, public frontend/API URLs, managed database, DNS/TLS, alarms and
+  cost limits: **not provisioned by this repository batch**.
+- Sentry organization/projects/DSNs, source-map upload secret, service-side scrubbing settings,
+  real event JSON and issue alert: **pending platform setup and evidence**.
+- OTLP collector endpoint and captured web-to-PostgreSQL trace: **pending platform setup and
+  evidence**.
+- API-vs-committed OpenAPI red/green demonstration, generated-type drift red run and green CI
+  links: **must be produced by controlled PRs and linked here**.
+- Deployed 401/403/404/409/422/429/500 flow evidence, cross-domain refresh, foreign-origin CORS,
+  five-failure account-isolation test, proof persistence after redeploy, and link-preview check:
+  **pending deployed verification**.
+- Silent-teammate deploy/rollback test and elapsed rollback time: **pending**.
+- Four-minute-or-less deployed Treasurer month-end recording: **pending**.
+- Current backend suite was reported as 68/68 passing before this completion batch. Re-run the
+  final full verification after all changes; do not treat the earlier result as verification of
+  these additions.
+
+## Assignment 9.3 local verification record
+
+Verification run date: 2026-11-16
+
+| Check | Result |
+|---|---|
+| Compose configuration | PASS |
+| Start PostgreSQL | PASS |
+| Wait for PostgreSQL | PASS |
+| Stop API for migration | PASS |
+| Apply database migrations | FAIL (exit 139) |
+| Start API | PASS |
+| Wait for API readiness | FAIL (exit 1) |
+| Export OpenAPI contract | SKIPPED: API readiness check failed |
+| Generate frontend API types | SKIPPED: API not ready |
+| Check API contract drift | SKIPPED: API not ready |
+| Backend Release build | PASS |
+| Backend test suite | PASS |
+| Frontend lint | PASS |
+| Next.js route type generation | PASS |
+| TypeScript type check | PASS |
+| Frontend UTC tests | PASS |
+| Frontend SAST tests | PASS |
+| Playwright end-to-end tests | FAIL (exit 1) |
+| Next.js production build | PASS |
+| Production dependency security audit | FAIL (exit 1) |
+| Whitespace and patch check | PASS |
+
+This local verification record does not claim a production deployment. See Known gaps and hand-in evidence above for cloud deployment, live URLs, Sentry/trace evidence, rollback rehearsal and demo recording still requiring external platform setup or capture.
+
+### Follow-up verification — 2026-11-17
+
+| Check | Result |
+|---|---|
+| API liveness endpoint | PASS (HTTP 200) |
+| API readiness endpoint | PASS (HTTP 200) |
+| OpenAPI export | PASS |
+| OpenAPI contract drift check | PASS |
+| Frontend API type generation | PASS |
+| Next.js Docker image build | PASS (`ronditrack-web:9.3`) |
+
+The API and PostgreSQL connection was verified in the Codespaces environment using the Codespaces Compose network override. This does not resolve or replace the outstanding migration exit 139, Playwright E2E, or production dependency audit failures recorded above. Production deployment and Demo Day evidence remain pending.

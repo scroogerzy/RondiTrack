@@ -26,7 +26,7 @@ services:
       dockerfile: Dockerfile
     restart: unless-stopped
     environment:
-      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__RondiTrack: ${ConnectionStrings__RondiTrack:?Set ConnectionStrings__RondiTrack in .env}
       Jwt__SigningKey: ${Jwt__SigningKey:?Set Jwt__SigningKey in .env}
@@ -34,6 +34,9 @@ services:
       Housekeeping__IntervalSeconds: ${Housekeeping__IntervalSeconds:-3600}
       Housekeeping__RefreshTokenRetentionDays: ${Housekeeping__RefreshTokenRetentionDays:-7}
       Housekeeping__IdempotencyRetentionHours: ${Housekeeping__IdempotencyRetentionHours:-48}
+      Sentry__Dsn: ${Sentry__Dsn:-}
+      Sentry__Release: ${Sentry__Release:-}
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-}
     ports:
       - "8080:8080"
     depends_on:

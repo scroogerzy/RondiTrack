@@ -57,7 +57,7 @@ public sealed class CycleCloseBackgroundService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Cycle-close run failed.");
+                _logger.LogError("Cycle-close run failed. ExceptionType: {ExceptionType}.", ex.GetType().Name);
             }
 
             try
@@ -101,10 +101,7 @@ public sealed class CycleCloseBackgroundService : BackgroundService
             }
             catch (Exception ex)
             {
-                _logger.LogError(
-                    ex,
-                    "Cycle closure failed for stokvel {StokvelId}; it will be retried on the next run.",
-                    stokvelId);
+                _logger.LogError("Cycle closure failed for stokvel {StokvelId}. ExceptionType: {ExceptionType}; it will retry next run.", stokvelId, ex.GetType().Name);
             }
         }
     }
@@ -224,9 +221,11 @@ public sealed class CycleCloseBackgroundService : BackgroundService
 
         if (closedCount > 0)
         {
+            var southAfricanTime = TimeZoneInfo.ConvertTime(
+                new DateTimeOffset(nowUtc, TimeSpan.Zero), Johannesburg);
             _logger.LogInformation(
-                "Closed {CycleCount} cycle(s) and recorded {ArrearsCount} arrears record(s) for stokvel {StokvelId}.",
-                closedCount, arrearsCount, stokvelId);
+                "Closed {CycleCount} cycle(s) and recorded {ArrearsCount} arrears record(s) for stokvel {StokvelId} at {SouthAfricanTime}.",
+                closedCount, arrearsCount, stokvelId, southAfricanTime.ToString("O"));
         }
     }
 

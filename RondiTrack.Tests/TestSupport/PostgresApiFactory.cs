@@ -44,7 +44,8 @@ public sealed class PostgresApiFactory : WebApplicationFactory<Program>, IAsyncL
             _container.GetConnectionString());
 
         builder.UseSetting("Jwt:SigningKey", TestSigningKey);
-        builder.UseSetting("RateLimiting:Login:PermitLimit", "1000");
+        builder.UseSetting("RateLimiting:Login:PermitLimit", "5");
+        builder.UseSetting("RateLimiting:Login:WindowSeconds", "60");
 
         // Prevent automatic cycle closure from changing seeded test data.
         // This removal applies only to the integration-test host.

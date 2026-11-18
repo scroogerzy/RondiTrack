@@ -16,7 +16,10 @@ public interface IIdempotencyStore
     /// <summary>
     /// Atomically reserves an idempotency key.
     /// </summary>
-    Task<bool> TryReserveAsync(string key);
+    Task<bool> TryReserveAsync(string key, string requestHash);
+
+    /// <summary>Runs the contribution write and idempotency receipt in one transaction.</summary>
+    Task<T> ExecuteAtomicallyAsync<T>(Func<Task<T>> operation);
 
     /// <summary>
     /// Stores the request hash and original response for an idempotency key.

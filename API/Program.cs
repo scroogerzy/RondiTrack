@@ -1,3 +1,6 @@
+using Sentry.Extensibility;
+using Sentry;
+using RondiTrack.API.Observability;
 using OpenTelemetry.Trace;
 using OpenTelemetry.Metrics;
 using OpenTelemetry;
@@ -30,7 +33,9 @@ using System.Text.Json.Serialization;
 using RondiTrack.Common;
 using RondiTrack.API.Services.BackgroundJobs;
 
-var builder = WebApplication.CreateBuilder(args);
+var migrateOnly = args.Any(arg => string.Equals(arg, "--migrate-only", StringComparison.OrdinalIgnoreCase));
+var builderArgs = args.Where(arg => !string.Equals(arg, "--migrate-only", StringComparison.OrdinalIgnoreCase)).ToArray();
+var builder = WebApplication.CreateBuilder(builderArgs);
 
 // Authentication settings: the signing key must come from user-secrets or environment configuration.
 var jwtSection = builder.Configuration.GetSection(JwtOptions.SectionName);
@@ -156,10 +161,8 @@ builder.Services.AddScoped<
     IContributionCycleRepository,
     EfContributionCycleRepository>();
 
-// The idempotency store remains in-memory in this implementation.
-builder.Services.AddSingleton<
-    IIdempotencyStore,
-    InMemoryIdempotencyStore>();
+// Idempotency receipts share the request DbContext and transaction.
+builder.Services.AddScoped<IIdempotencyStore, EfIdempotencyStore>();
 
 // Register the business service.
 builder.Services.AddScoped<IStokvelService, StokvelService>();
@@ -252,7 +255,8 @@ builder.Services.AddRateLimiter(options =>
 
     options.AddPolicy(RateLimitPolicies.Login, httpContext =>
         RateLimitPartition.GetFixedWindowLimiter(
-            partitionKey: httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip",
+            partitionKey: httpContext.Items[LoginRateLimitKeyMiddleware.ItemKey]?.ToString()
+                ?? $"ip:{httpContext.Connection.RemoteIpAddress?.ToString() ?? "unknown-ip"}",
             factory: _ => new FixedWindowRateLimiterOptions
             {
                 PermitLimit = Math.Max(1, loginPermitLimit),
@@ -301,11 +305,36 @@ builder.Services.AddRateLimiter(options =>
             }));
 });
 
+var sentryDsn = builder.Configuration["Sentry:Dsn"];
+if (!string.IsNullOrWhiteSpace(sentryDsn))
+{
+    builder.WebHost.UseSentry(options =>
+    {
+        options.Dsn = sentryDsn;
+        options.SendDefaultPii = false;
+        options.MaxRequestBodySize = RequestSize.None;
+        options.Release = builder.Configuration["Sentry:Release"];
+        options.SetBeforeSend(SentryPrivacyScrubber.Scrub);
+        options.SetBeforeBreadcrumb(_ => null);
+    });
+}
+
 var app = builder.Build();
 
-// Apply pending migrations and add basic starter records when needed.
-// The volume seeder required by Assignment 5.3 should remain a separate,
-// explicit operation and must not run automatically at application startup.
+// Deployment runs migrations as a one-off task before new API replicas receive traffic.
+// `dotnet API.dll --migrate-only` exits after applying migrations and never seeds demo data.
+if (migrateOnly)
+{
+    await using var migrationScope = app.Services.CreateAsyncScope();
+    var migrationDb = migrationScope.ServiceProvider.GetRequiredService<RondiTrackDbContext>();
+    await migrationDb.Database.MigrateAsync();
+    return;
+}
+
+// Seed local/test environments only. Production databases must be provisioned
+// deliberately and must never receive hard-coded demo identities or financial records.
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+{
 using (var scope = app.Services.CreateScope())
 {
     var dbContext = scope.ServiceProvider
@@ -444,6 +473,8 @@ using (var scope = app.Services.CreateScope())
     }
 }
 
+}
+
 // Liveness checks the process only. Readiness checks PostgreSQL.
 app.MapHealthChecks("/health/live", new Microsoft.AspNetCore.Diagnostics.HealthChecks.HealthCheckOptions
 {
@@ -460,12 +491,11 @@ app.MapHealthChecks("/health/ready", new Microsoft.AspNetCore.Diagnostics.Health
 }).AllowAnonymous();
 
 
-// Expose documentation endpoints in Development only.
+// The versioned OpenAPI JSON is public so CI and the committed contract can be compared.
+// Keep the interactive Scalar UI limited to Development.
+app.MapOpenApi().AllowAnonymous();
 if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi().AllowAnonymous();
     app.MapScalarApiReference().AllowAnonymous();
-}
 
 // Register middleware in the existing request pipeline.
 app.UseRouting();
@@ -518,6 +548,7 @@ app.UseStatusCodePages(async context =>
         cancellationToken: httpContext.RequestAborted);
 });
 app.UseAuthentication();
+app.UseMiddleware<LoginRateLimitKeyMiddleware>();
 app.UseRateLimiter();
 app.UseAuthorization();
 

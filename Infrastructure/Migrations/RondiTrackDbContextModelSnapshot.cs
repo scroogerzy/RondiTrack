@@ -22,52 +22,6 @@ namespace RondiTrack.Infrastructure.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("RondiTrack.Domain.Models.StokvelInvite", b =>
-                {
-                    b.Property<Guid>("Id").ValueGeneratedNever().HasColumnType("uuid");
-                    b.Property<string>("CodeHash").IsRequired().HasMaxLength(64).HasColumnType("character varying(64)");
-                    b.Property<DateTime>("CreatedAtUtc").HasColumnType("timestamp with time zone");
-                    b.Property<Guid>("CreatedByUserId").HasColumnType("uuid");
-                    b.Property<DateTime>("ExpiresAtUtc").HasColumnType("timestamp with time zone");
-                    b.Property<Guid>("StokvelId").HasColumnType("uuid");
-                    b.HasKey("Id");
-                    b.HasIndex("CodeHash").IsUnique();
-                    b.HasIndex("StokvelId", "ExpiresAtUtc");
-                    b.ToTable("StokvelInvites");
-                });
-
-            modelBuilder.Entity("RondiTrack.Domain.Models.ContributionProof", b =>
-                {
-                    b.Property<Guid>("Id").ValueGeneratedNever().HasColumnType("uuid");
-                    b.Property<byte[]>("Content").IsRequired().HasColumnType("bytea");
-                    b.Property<string>("ContentType").IsRequired().HasMaxLength(100).HasColumnType("character varying(100)");
-                    b.Property<Guid>("ContributionId").HasColumnType("uuid");
-                    b.Property<string>("FileName").IsRequired().HasMaxLength(255).HasColumnType("character varying(255)");
-                    b.Property<Guid>("StokvelId").HasColumnType("uuid");
-                    b.Property<DateTime>("UploadedAtUtc").HasColumnType("timestamp with time zone");
-                    b.Property<Guid>("UploadedByUserId").HasColumnType("uuid");
-                    b.HasKey("Id");
-                    b.HasIndex("ContributionId").IsUnique();
-                    b.HasIndex("StokvelId");
-                    b.HasIndex("UploadedByUserId");
-                    b.ToTable("ContributionProofs");
-                });
-
-            modelBuilder.Entity("RondiTrack.Domain.Models.CycleCloseReceipt", b =>
-                {
-                    b.Property<Guid>("Id").ValueGeneratedNever().HasColumnType("uuid");
-                    b.Property<Guid>("CycleId").HasColumnType("uuid");
-                    b.Property<DateTime>("ClosedAtUtc").HasColumnType("timestamp with time zone");
-                    b.Property<string>("IdempotencyKey").IsRequired().HasMaxLength(128).HasColumnType("character varying(128)");
-                    b.Property<long>("PreviewVersion").HasColumnType("bigint");
-                    b.Property<Guid>("StokvelId").HasColumnType("uuid");
-                    b.HasKey("Id");
-                    b.HasIndex("CycleId").IsUnique();
-                    b.HasIndex("IdempotencyKey").IsUnique();
-                    b.HasIndex("StokvelId");
-                    b.ToTable("CycleCloseReceipts");
-                });
-
             modelBuilder.Entity("RondiTrack.Domain.Models.ArrearRecord", b =>
                 {
                     b.Property<Guid>("Id")
@@ -170,6 +124,84 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.ToTable("ContributionCycles");
                 });
 
+            modelBuilder.Entity("RondiTrack.Domain.Models.ContributionProof", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<byte[]>("Content")
+                        .IsRequired()
+                        .HasColumnType("bytea");
+
+                    b.Property<string>("ContentType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid>("ContributionId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FileName")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<Guid>("StokvelId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("UploadedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("UploadedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ContributionId")
+                        .IsUnique();
+
+                    b.HasIndex("StokvelId");
+
+                    b.HasIndex("UploadedByUserId");
+
+                    b.ToTable("ContributionProofs");
+                });
+
+            modelBuilder.Entity("RondiTrack.Domain.Models.CycleCloseReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ClosedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CycleId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("IdempotencyKey")
+                        .IsRequired()
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)");
+
+                    b.Property<long>("PreviewVersion")
+                        .HasColumnType("bigint");
+
+                    b.Property<Guid>("StokvelId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CycleId")
+                        .IsUnique();
+
+                    b.HasIndex("IdempotencyKey")
+                        .IsUnique();
+
+                    b.HasIndex("StokvelId");
+
+                    b.ToTable("CycleCloseReceipts");
+                });
+
             modelBuilder.Entity("RondiTrack.Domain.Models.RefreshToken", b =>
                 {
                     b.Property<Guid>("Id")
@@ -224,12 +256,17 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.Property<decimal>("MonthlyContribution")
                         .HasColumnType("numeric");
 
-                    b.Property<string>("Rules").IsRequired().HasMaxLength(4000).HasDefaultValue("").HasColumnType("character varying(4000)");
-
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
+
+                    b.Property<string>("Rules")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)")
+                        .HasDefaultValue("");
 
                     b.Property<uint>("Version")
                         .IsConcurrencyToken()
@@ -240,6 +277,38 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Stokvels");
+                });
+
+            modelBuilder.Entity("RondiTrack.Domain.Models.StokvelInvite", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CodeHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("ExpiresAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("StokvelId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CodeHash")
+                        .IsUnique();
+
+                    b.HasIndex("StokvelId", "ExpiresAtUtc");
+
+                    b.ToTable("StokvelInvites");
                 });
 
             modelBuilder.Entity("RondiTrack.Domain.Models.StokvelMember", b =>
@@ -312,22 +381,32 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.ToTable("Users");
                 });
 
-            modelBuilder.Entity("RondiTrack.Domain.Models.StokvelInvite", b =>
+            modelBuilder.Entity("RondiTrack.Infrastructure.Data.IdempotencyEntry", b =>
                 {
-                    b.HasOne("RondiTrack.Domain.Models.Stokvel", null).WithMany().HasForeignKey("StokvelId").OnDelete(DeleteBehavior.Cascade).IsRequired();
-                });
+                    b.Property<string>("IdempotencyKey")
+                        .HasMaxLength(128)
+                        .HasColumnType("character varying(128)")
+                        .HasColumnName("IdempotencyKey");
 
-            modelBuilder.Entity("RondiTrack.Domain.Models.ContributionProof", b =>
-                {
-                    b.HasOne("RondiTrack.Domain.Models.Contribution", null).WithMany().HasForeignKey("ContributionId").OnDelete(DeleteBehavior.Cascade).IsRequired();
-                    b.HasOne("RondiTrack.Domain.Models.Stokvel", null).WithMany().HasForeignKey("StokvelId").OnDelete(DeleteBehavior.Cascade).IsRequired();
-                    b.HasOne("RondiTrack.Domain.Models.User", null).WithMany().HasForeignKey("UploadedByUserId").OnDelete(DeleteBehavior.Restrict).IsRequired();
-                });
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("CreatedAtUtc");
 
-            modelBuilder.Entity("RondiTrack.Domain.Models.CycleCloseReceipt", b =>
-                {
-                    b.HasOne("RondiTrack.Domain.Models.ContributionCycle", null).WithMany().HasForeignKey("CycleId").OnDelete(DeleteBehavior.Cascade).IsRequired();
-                    b.HasOne("RondiTrack.Domain.Models.Stokvel", null).WithMany().HasForeignKey("StokvelId").OnDelete(DeleteBehavior.Cascade).IsRequired();
+                    b.Property<string>("RequestHash")
+                        .IsRequired()
+                        .HasMaxLength(64)
+                        .HasColumnType("character varying(64)")
+                        .HasColumnName("RequestHash");
+
+                    b.Property<string>("ResponseJson")
+                        .HasColumnType("text")
+                        .HasColumnName("ResponseJson");
+
+                    b.HasKey("IdempotencyKey");
+
+                    b.HasIndex("CreatedAtUtc");
+
+                    b.ToTable("IdempotencyEntries", (string)null);
                 });
 
             modelBuilder.Entity("RondiTrack.Domain.Models.ArrearRecord", b =>
@@ -368,11 +447,56 @@ namespace RondiTrack.Infrastructure.Migrations
                     b.Navigation("Stokvel");
                 });
 
+            modelBuilder.Entity("RondiTrack.Domain.Models.ContributionProof", b =>
+                {
+                    b.HasOne("RondiTrack.Domain.Models.Contribution", null)
+                        .WithMany()
+                        .HasForeignKey("ContributionId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RondiTrack.Domain.Models.Stokvel", null)
+                        .WithMany()
+                        .HasForeignKey("StokvelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RondiTrack.Domain.Models.User", null)
+                        .WithMany()
+                        .HasForeignKey("UploadedByUserId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RondiTrack.Domain.Models.CycleCloseReceipt", b =>
+                {
+                    b.HasOne("RondiTrack.Domain.Models.ContributionCycle", null)
+                        .WithMany()
+                        .HasForeignKey("CycleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("RondiTrack.Domain.Models.Stokvel", null)
+                        .WithMany()
+                        .HasForeignKey("StokvelId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("RondiTrack.Domain.Models.RefreshToken", b =>
                 {
                     b.HasOne("RondiTrack.Domain.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("RondiTrack.Domain.Models.StokvelInvite", b =>
+                {
+                    b.HasOne("RondiTrack.Domain.Models.Stokvel", null)
+                        .WithMany()
+                        .HasForeignKey("StokvelId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
