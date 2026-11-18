@@ -59,11 +59,11 @@ final stokvelDetailProvider = StokvelDetailFamily._();
 final class StokvelDetailProvider
     extends
         $FunctionalProvider<
-          AsyncValue<StokvelHomeItem?>,
-          StokvelHomeItem?,
-          FutureOr<StokvelHomeItem?>
+          AsyncValue<StokvelDetail?>,
+          StokvelDetail?,
+          FutureOr<StokvelDetail?>
         >
-    with $FutureModifier<StokvelHomeItem?>, $FutureProvider<StokvelHomeItem?> {
+    with $FutureModifier<StokvelDetail?>, $FutureProvider<StokvelDetail?> {
   StokvelDetailProvider._({
     required StokvelDetailFamily super.from,
     required String super.argument,
@@ -87,12 +87,12 @@ final class StokvelDetailProvider
 
   @$internal
   @override
-  $FutureProviderElement<StokvelHomeItem?> $createElement(
+  $FutureProviderElement<StokvelDetail?> $createElement(
     $ProviderPointer pointer,
   ) => $FutureProviderElement(pointer);
 
   @override
-  FutureOr<StokvelHomeItem?> create(Ref ref) {
+  FutureOr<StokvelDetail?> create(Ref ref) {
     final argument = this.argument as String;
     return stokvelDetail(ref, argument);
   }
@@ -108,10 +108,10 @@ final class StokvelDetailProvider
   }
 }
 
-String _$stokvelDetailHash() => r'73a82bd6f08f48873ffc0c0c181c90b0efed7995';
+String _$stokvelDetailHash() => r'e20e0165329c2ba207ef9db0e55946db309c69f7';
 
 final class StokvelDetailFamily extends $Family
-    with $FunctionalFamilyOverride<FutureOr<StokvelHomeItem?>, String> {
+    with $FunctionalFamilyOverride<FutureOr<StokvelDetail?>, String> {
   StokvelDetailFamily._()
     : super(
         retry: null,

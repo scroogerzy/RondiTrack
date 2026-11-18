@@ -1,6 +1,8 @@
 import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:ronditrack_mobile/features/home/data/home_repository.dart';
 import 'package:ronditrack_mobile/features/home/domain/home_models.dart';
+import 'package:ronditrack_mobile/features/stokvel/domain/stokvel_detail.dart';
+
 part 'home_controller.g.dart';
 
 @riverpod
@@ -24,8 +26,6 @@ class HomeController extends _$HomeController {
 }
 
 @riverpod
-Future<StokvelHomeItem?> stokvelDetail(Ref ref, String stokvelId) async {
-  final item = await ref.watch(homeRepositoryProvider).loadStokvel(stokvelId);
-  // A missing membership and an unknown id deliberately share the same result.
-  return item;
+Future<StokvelDetail?> stokvelDetail(Ref ref, String stokvelId) {
+  return ref.watch(homeRepositoryProvider).loadStokvel(stokvelId);
 }

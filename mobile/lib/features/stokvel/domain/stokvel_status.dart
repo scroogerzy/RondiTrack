@@ -56,7 +56,16 @@ enum ContributionStatus {
   };
 }
 
-enum StokvelAction { pay, uploadProof, confirm, closeCycle, recordPayout }
+enum StokvelAction {
+  pay('Pay contribution'),
+  uploadProof('Upload proof'),
+  confirm('Confirm contributions'),
+  closeCycle('Close cycle'),
+  recordPayout('Record payout');
+
+  new(this.label);
+  final String label;
+}
 
 CycleStatus deriveCycleStatus({
   required DateTime nowUtc,
