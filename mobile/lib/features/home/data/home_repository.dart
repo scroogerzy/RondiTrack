@@ -63,7 +63,7 @@ class FakeHomeRepository implements HomeRepository {
       ),
       StokvelContribution(
         id: 'contribution-sibusiso-$stokvelId',
-        userId: 'sibusiso@example.com',
+        userId: 'sipho@example.com',
         cycleId: cycle.id,
         amountCents: 50000,
         recordedAtUtc: DateTime.utc(2026, 11, 6),
@@ -94,23 +94,13 @@ class FakeHomeRepository implements HomeRepository {
       DemoPersona.sibusiso => [
         _item(_ubuntu, 'Ubuntu Savings Club', 'Member', 5, 50000, 100000, 0),
       ],
-      DemoPersona.thabo => [
-        _item(
-          _ubuntu,
-          'Ubuntu Savings Club',
-          'Member',
-          5,
-          50000,
-          100000,
-          15000,
-        ),
-      ],
+      DemoPersona.thabo => <StokvelHomeItem>[],
       DemoPersona.noMemberships => <StokvelHomeItem>[],
     };
     return HomeResponse(
       currentUserId: switch (persona) {
         DemoPersona.lerato => 'lerato@example.com',
-        DemoPersona.sibusiso => 'sibusiso@example.com',
+        DemoPersona.sibusiso => 'sipho@example.com',
         DemoPersona.thabo => 'thabo@example.com',
         DemoPersona.noMemberships => 'empty-persona',
       },
@@ -142,7 +132,7 @@ class FakeHomeRepository implements HomeRepository {
 HomeRepository homeRepository(Ref ref) {
   final email = ref.watch(fakeAuthProvider).email;
   final persona = switch (email) {
-    'sibusiso@example.com' => DemoPersona.sibusiso,
+    'sipho@example.com' => DemoPersona.sibusiso,
     'thabo@example.com' => DemoPersona.thabo,
     null => DemoPersona.noMemberships,
     _ => DemoPersona.lerato,

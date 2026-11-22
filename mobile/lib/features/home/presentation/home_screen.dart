@@ -1,8 +1,10 @@
-﻿// Keep long UI expressions readable; avoid awkward line breaks.
+// Keep long UI expressions readable; avoid awkward line breaks.
 // ignore_for_file: lines_longer_than_80_chars
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
+import 'package:ronditrack_mobile/core/config/app_config.dart';
+import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
 import 'package:ronditrack_mobile/features/navigation/app_routes.dart';
 
@@ -11,8 +13,34 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final home = ref.watch(homeControllerProvider);
+    final isDevelopment = ref.watch(appConfigProvider).environment == 'dev';
     return Scaffold(
-      appBar: AppBar(title: const Text('RondiTrack')),
+      appBar: AppBar(
+        title: const Text('RondiTrack'),
+        actions: [
+          if (isDevelopment)
+            PopupMenuButton<String>(
+              tooltip: 'Development persona',
+              icon: const Icon(Icons.switch_account),
+              onSelected: (email) =>
+                  ref.read(fakeAuthProvider.notifier).signIn(email),
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'lerato@example.com',
+                  child: Text('Lerato · Treasurer / Member'),
+                ),
+                PopupMenuItem(
+                  value: 'sipho@example.com',
+                  child: Text('Sipho · Member'),
+                ),
+                PopupMenuItem(
+                  value: 'thabo@example.com',
+                  child: Text('Thabo · No memberships'),
+                ),
+              ],
+            ),
+        ],
+      ),
       body: RefreshIndicator(
         onRefresh: () => ref.read(homeControllerProvider.notifier).refresh(),
         child: home.when(

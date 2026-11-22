@@ -24,11 +24,11 @@ Contract source: `contract/openapi-v1.json`, read against API commit
   `ClaimTypes.NameIdentifier`.
 - `nextPayoutDateUtc` is nullable and represented as a date-time instant, not
   a date-only value.
-- Seed identities: Lerato Dlamini (`lerato@example.com`), Sibusiso Ndlovu
-  (`sibusiso@example.com`) and Thabo Mokoena (`thabo@example.com`). Lerato is
-  Treasurer of Ubuntu Savings Club and Member of Mzanzi Monthly Stokvel;
-  Sibusiso and Thabo are Members of Ubuntu Savings Club. The fake mirrors these
-  per-membership roles. The no-membership persona is a client-only test fixture.
+- Capstone personas: Lerato Dlamini (`lerato@example.com`) is Treasurer of
+  Ubuntu Savings Club and Member of Mzanzi Monthly Stokvel; Sipho Ndlovu
+  (`sipho@example.com`) is a Member of Ubuntu Savings Club; Thabo Mokoena
+  (`thabo@example.com`) has no memberships. These fake personas are used only
+  by the mobile capstone demo.
 - Record contribution route: `POST /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/contributions`;
   JSON fields `userId`, `amountInCents`, and `Idempotency-Key` header.
 
@@ -155,6 +155,7 @@ acceptance tests are complete.
 | `/stokvels` | Stokvel list tab | Sign-in, then Home | Empty list | Home branch root |
 | `/stokvels/:id` | Stokvel detail, Stokvels tab | Sign-in, then Home | `Stokvel not found.` (same as unknown ID) | Stokvel list |
 | `/stokvels/:id/cycles/:cycleId` | Cycle detail nested under stokvel | Sign-in, then Home | `Cycle not found.` | Parent stokvel detail |
+| `/stokvels/:id/cycles/:cycleId/payout-order` | Server-ordered payout rotation | Sign-in, then Home | `Payout order not found.` | Parent cycle detail |
 | `/activity` | Activity tab | Sign-in, then Home | Empty activity | Activity root |
 | `/profile` | Profile tab | Sign-in, then Home | Not applicable | Profile root |
 | `/join/:code` | Invite preview outside the shell | Sign-in, then the remembered invite | Invite preview is shown; joining is a fake demo action | Previous in-app address, or Home after cold-start sign-in |
@@ -167,7 +168,7 @@ Widgets navigate with generated typed route objects; no `Navigator.push` or raw 
 
 `authRedirect` is a pure function and is unit tested without a widget. Signed-out navigation is sent to `/sign-in`. Only a safe, internal `/join/:code` path is stored in the sign-in query. After sign-in the router refreshes through `refreshListenable` and returns to that invite. Any external URL, malformed path or non-invite destination is discarded and lands on `/home`. Signing out changes the auth provider, refreshes the router and sends the user to sign-in; protected pages cannot be revisited with Back.
 
-The fake sign-in accepts `lerato@example.com`, `sibusiso@example.com` and `thabo@example.com`. The fake repository selects the matching seeded persona from auth state. The join button is a local demo action only; Week 11 will replace it with the API workflow.
+The fake sign-in accepts `lerato@example.com`, `sipho@example.com` and `thabo@example.com`. Lerato has Treasurer and Member memberships in separate stokvels; Sipho is a Member; Thabo has no memberships. The persona switcher is built only when `APP_ENV=dev`; it is absent in staging and production. The fake repository selects the matching seeded persona from auth state. The join button is a local demo action only; Week 11 will replace it with the API workflow.
 
 ## Deep links
 
@@ -235,3 +236,44 @@ flutter test
 ## Assignment 10.2 evidence still required
 
 Capture real emulator screenshots of Home and a stokvel in light and dark; compact 360 dp at 200% text; expanded tablet list/detail; and the non-member not-found state. Record cold-start cycle deep link then Back, and `/join/:code` signed out through sign-in to invite preview. Run adb cold-start tests for all three flavours. The source bundle cannot supply real emulator screenshots or recordings, and CI must be observed green on GitHub before the PR is ready.
+
+
+# Assignment 10.3 — Payout Rotation
+
+## Contract notes
+
+- `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/payout-order` returns the canonical ordered list. Each entry contains `memberId`, `memberName`, `position`, `amountInCents`, `payoutDateUtc`, and `status`.
+- Status wire values are exactly `next`, `upcoming`, `paid`, and `unknown`. The client maps unknown values to `PayoutStatus.unknown` and displays a safe label.
+- The backend selects the next recipient. The client preserves `entries` order and does not sort, count paid entries, sum the pot, or calculate a recipient.
+- A non-member receives the same 404 response as an unknown stokvel.
+- Only the Treasurer may `POST /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/payout`; other members receive 403. Membership role is read from the database, not token claims.
+- Contract implementation rule: membership join order (`JoinedAtUtc`, then `UserId`) defines the stable rotation. Cycle periods rotate through that order. The payout amount is the cycle's `TargetAmount`; the scheduled payout date is the cycle end date. This rule is explicitly implemented in the API and must be confirmed against the product's intended stokvel rules before production use.
+
+## Routes
+
+| Route | Purpose |
+|---|---|
+| `/stokvels/:id/cycles/:cycleId/payout-order` | View the server-provided payout order for one cycle |
+
+## Theme tokens
+
+| Payout state | Light foreground/background | Dark foreground/background |
+|---|---|---|
+| Next recipient | `paidOutForeground` / `paidOutBackground` | `paidOutForeground` / `paidOutBackground` |
+| Upcoming | `closedForeground` / `closedBackground` | `closedForeground` / `closedBackground` |
+| Paid | `contributionPaidForeground` / `contributionPaidBackground` | `contributionPaidForeground` / `contributionPaidBackground` |
+| Unknown | `colorScheme.onSurface` / `surfaceContainerHighest` | `colorScheme.onSurface` / `surfaceContainerHighest` |
+
+The payout view reads the existing measured status pairs from `RondiStatusColors`; no feature widget declares a new colour.
+
+## Architecture boundaries
+
+- `features/payouts/domain/` owns typed payout entries, cents, status mapping and the repository interface.
+- `features/payouts/data/` owns the fake repository and cycle-keyed provider family.
+- `features/payouts/presentation/` owns the screen only; it imports no API persistence or database implementation.
+- The provider family key is a stable Dart record `(stokvelId, cycleId)`. It watches persona-scoped home membership before loading data, so another persona receives not-found and auth changes rebuild the provider.
+- The API owns ordering, recipient selection, amount and date.
+
+## Remaining live integration
+
+This assignment ZIP uses the fake payout repository for the mobile screen. The API endpoint and contract are implemented, but a live HTTP repository and Treasurer POST action still need to be connected when the app's API client/auth transport is introduced. Do not present the disabled demo action as a completed live payout workflow.

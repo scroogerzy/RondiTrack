@@ -106,11 +106,18 @@ Set<StokvelAction> availableActions({
       ContributionStatus.confirmed => const {},
     },
   },
-  StokvelRole.treasurer || StokvelRole.chairperson => switch (cycleStatus) {
+  StokvelRole.treasurer => switch (cycleStatus) {
     CycleStatus.scheduled ||
     CycleStatus.payoutProcessed ||
     CycleStatus.unknown => const {},
     CycleStatus.open => {StokvelAction.confirm, StokvelAction.closeCycle},
     CycleStatus.closed => {StokvelAction.recordPayout},
+  },
+  StokvelRole.chairperson => switch (cycleStatus) {
+    CycleStatus.scheduled ||
+    CycleStatus.payoutProcessed ||
+    CycleStatus.unknown ||
+    CycleStatus.closed => const {},
+    CycleStatus.open => {StokvelAction.confirm, StokvelAction.closeCycle},
   },
 };

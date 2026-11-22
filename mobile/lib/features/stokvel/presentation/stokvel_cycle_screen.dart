@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
 import 'package:ronditrack_mobile/features/stokvel/domain/stokvel_status.dart';
+import 'package:ronditrack_mobile/features/navigation/app_routes.dart';
 
 class StokvelCycleScreen extends ConsumerWidget {
   const new({required this.stokvelId, required this.cycleId, super.key});
@@ -45,6 +46,15 @@ class StokvelCycleScreen extends ConsumerWidget {
               ),
               Text('Status: ${CycleStatus.fromApi(cycle.status).label}'),
               Text('Collected: ${cycle.totalCollectedCents} cents'),
+              const SizedBox(height: 12),
+              OutlinedButton.icon(
+                onPressed: () => PayoutOrderRoute(
+                  id: stokvelId,
+                  cycleId: cycleId,
+                ).push<void>(context),
+                icon: const Icon(Icons.format_list_numbered),
+                label: const Text('View payout rotation'),
+              ),
               const SizedBox(height: 16),
               Text(
                 'Contributions',

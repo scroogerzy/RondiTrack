@@ -2041,3 +2041,12 @@ This local verification record does not claim a production deployment. See Known
 | Next.js Docker image build | PASS (`ronditrack-web:9.3`) |
 
 The API and PostgreSQL connection was verified in the Codespaces environment using the Codespaces Compose network override. This does not resolve or replace the outstanding migration exit 139, Playwright E2E, or production dependency audit failures recorded above. Production deployment and Demo Day evidence remain pending.
+
+
+## Assignment 10.3 — Payout rotation contract
+
+The API exposes `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/payout-order`. It returns `memberId`, `memberName`, `position`, `amountInCents`, `payoutDateUtc`, and `status` for each entry. Status values are `next`, `upcoming`, `paid`, and `unknown`. The response order is authoritative; clients must not sort it or calculate the next recipient.
+
+The implemented rotation rule orders memberships by `JoinedAtUtc` and then `UserId`, and rotates the recipient by cycle period. The payout amount is the cycle `TargetAmount`; payout date is the cycle end date. A non-member receives 404. Only the Treasurer can record a payout; the API checks the live membership role and returns 403 for other roles. This is a product-rule assumption based on the existing membership join timestamp and cycle fields; it must be confirmed before production rollout.
+
+OpenAPI files: `openapi/v1.json` and `mobile/contract/openapi-v1.json`.

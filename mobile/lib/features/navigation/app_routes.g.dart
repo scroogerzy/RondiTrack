@@ -40,6 +40,13 @@ RouteBase get $appShellRouteData => StatefulShellRouteData.$route(
                   path: 'cycles/:cycleId',
                   hasOverriddenOnExit: false,
                   factory: $StokvelCycleRoute._fromState,
+                  routes: [
+                    GoRouteData.$route(
+                      path: 'payout-order',
+                      hasOverriddenOnExit: false,
+                      factory: $PayoutOrderRoute._fromState,
+                    ),
+                  ],
                 ),
               ],
             ),
@@ -148,6 +155,33 @@ mixin $StokvelCycleRoute on GoRouteData {
   @override
   String get location => GoRouteData.$location(
     '/stokvels/${Uri.encodeComponent(_self.id)}/cycles/${Uri.encodeComponent(_self.cycleId)}',
+  );
+
+  @override
+  void go(BuildContext context) => context.go(location);
+
+  @override
+  Future<T?> push<T>(BuildContext context) => context.push<T>(location);
+
+  @override
+  void pushReplacement(BuildContext context) =>
+      context.pushReplacement(location);
+
+  @override
+  void replace(BuildContext context) => context.replace(location);
+}
+
+mixin $PayoutOrderRoute on GoRouteData {
+  static PayoutOrderRoute _fromState(GoRouterState state) => PayoutOrderRoute(
+    id: state.pathParameters['id']!,
+    cycleId: state.pathParameters['cycleId']!,
+  );
+
+  PayoutOrderRoute get _self => this as PayoutOrderRoute;
+
+  @override
+  String get location => GoRouteData.$location(
+    '/stokvels/${Uri.encodeComponent(_self.id)}/cycles/${Uri.encodeComponent(_self.cycleId)}/payout-order',
   );
 
   @override

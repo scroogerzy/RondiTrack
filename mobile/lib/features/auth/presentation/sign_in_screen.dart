@@ -1,4 +1,4 @@
-﻿// Keep long UI expressions readable; avoid awkward line breaks.
+// Keep long UI expressions readable; avoid awkward line breaks.
 // ignore_for_file: lines_longer_than_80_chars
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -37,7 +37,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
               style: Theme.of(context).textTheme.headlineSmall,
             ),
             const SizedBox(height: 8),
-            const Text('Use one of the three seeded learner accounts.'),
+            const Text('Use one of the three demo learner personas.'),
             if (widget.from != null)
               const Padding(
                 padding: EdgeInsets.only(top: 8),
@@ -70,7 +70,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
                     .signIn(_email.text);
                 if (!accepted) {
                   setState(
-                    () => _error = 'Use lerato@example.com, sibusiso@example.com or thabo@example.com.',
+                    () => _error = 'Use lerato@example.com, sipho@example.com or thabo@example.com.',
                   );
                 }
               },
@@ -78,7 +78,7 @@ class _SignInScreenState extends ConsumerState<SignInScreen> {
             ),
             const SizedBox(height: 12),
             const Text(
-              'Demo accounts\nLerato Â· lerato@example.com\nSibusiso Â· sibusiso@example.com\nThabo Â· thabo@example.com',
+              'Demo accounts\nLerato Â· lerato@example.com\nSipho Â· sipho@example.com\nThabo Â· thabo@example.com',
             ),
           ],
         ),

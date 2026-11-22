@@ -1,6 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// The three API seed personas available to the Week 10 fake sign-in.
+/// The three capstone demo personas available to fake sign-in.
 class FakeAuthState {
   const new signedOut() : email = null;
   const new signedIn(this.email);
@@ -9,7 +9,7 @@ class FakeAuthState {
   bool get isSignedIn => email != null;
   String get displayName => switch (email) {
     'lerato@example.com' => 'Lerato Dlamini',
-    'sibusiso@example.com' => 'Sibusiso Ndlovu',
+    'sipho@example.com' => 'Sipho Ndlovu',
     'thabo@example.com' => 'Thabo Mokoena',
     _ => 'Signed out',
   };
@@ -23,7 +23,7 @@ class FakeAuthController extends Notifier<FakeAuthState> {
     final normalized = email.trim().toLowerCase();
     const allowed = {
       'lerato@example.com',
-      'sibusiso@example.com',
+      'sipho@example.com',
       'thabo@example.com',
     };
     if (!allowed.contains(normalized)) return false;

@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ronditrack_mobile/core/config/app_config.dart';
+export 'package:ronditrack_mobile/core/config/app_config.dart'
+    show appConfigProvider;
 import 'package:ronditrack_mobile/core/theme/rondi_theme.dart';
 import 'package:ronditrack_mobile/features/navigation/app_router.dart';
-
-final appConfigProvider = Provider<AppConfig>(
-  (ref) => throw StateError('AppConfig must be supplied by main().'),
-);
 
 class RondiTrackApp extends ConsumerWidget {
   const new({super.key});

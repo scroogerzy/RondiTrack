@@ -6,6 +6,7 @@ import 'package:ronditrack_mobile/features/home/presentation/home_screen.dart';
 import 'package:ronditrack_mobile/features/invites/presentation/invite_preview_screen.dart';
 import 'package:ronditrack_mobile/features/navigation/app_shell.dart';
 import 'package:ronditrack_mobile/features/profile/presentation/profile_screen.dart';
+import 'package:ronditrack_mobile/features/payouts/presentation/payout_order_screen.dart';
 import 'package:ronditrack_mobile/features/stokvel/presentation/stokvel_cycle_screen.dart';
 import 'package:ronditrack_mobile/features/stokvel/presentation/stokvel_detail_screen.dart';
 import 'package:ronditrack_mobile/features/stokvel/presentation/stokvels_screen.dart';
@@ -25,7 +26,12 @@ part 'app_routes.g.dart';
             TypedGoRoute<StokvelDetailRoute>(
               path: ':id',
               routes: [
-                TypedGoRoute<StokvelCycleRoute>(path: 'cycles/:cycleId'),
+                TypedGoRoute<StokvelCycleRoute>(
+                  path: 'cycles/:cycleId',
+                  routes: [
+                    TypedGoRoute<PayoutOrderRoute>(path: 'payout-order'),
+                  ],
+                ),
               ],
             ),
           ],
@@ -98,6 +104,15 @@ class StokvelCycleRoute extends GoRouteData with $StokvelCycleRoute {
   @override
   Widget build(BuildContext context, GoRouterState state) =>
       StokvelCycleScreen(stokvelId: id, cycleId: cycleId);
+}
+
+class PayoutOrderRoute extends GoRouteData with $PayoutOrderRoute {
+  const new({required this.id, required this.cycleId});
+  final String id;
+  final String cycleId;
+  @override
+  Widget build(BuildContext context, GoRouterState state) =>
+      PayoutOrderScreen(stokvelId: id, cycleId: cycleId);
 }
 
 class ActivityRoute extends GoRouteData with $ActivityRoute {

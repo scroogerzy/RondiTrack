@@ -651,6 +651,76 @@
           "version"
         ],
         "type": "object"
+      },
+      "PayoutOrderEntryResponse": {
+        "type": "object",
+        "required": [
+          "memberId",
+          "memberName",
+          "position",
+          "amountInCents",
+          "payoutDateUtc",
+          "status"
+        ],
+        "properties": {
+          "memberId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "memberName": {
+            "type": "string"
+          },
+          "position": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "amountInCents": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "payoutDateUtc": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "next",
+              "upcoming",
+              "paid",
+              "unknown"
+            ]
+          }
+        }
+      },
+      "PayoutOrderResponse": {
+        "type": "object",
+        "required": [
+          "stokvelId",
+          "cycleId",
+          "cycleNumber",
+          "entries"
+        ],
+        "properties": {
+          "stokvelId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycleId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cycleNumber": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PayoutOrderEntryResponse"
+            }
+          }
+        }
       }
     }
   },
@@ -1904,7 +1974,9 @@
         },
         "tags": [
           "ContributionCycles"
-        ]
+        ],
+        "summary": "Record the payout for the server-selected cycle recipient",
+        "description": "Treasurer-only. The recipient is determined by the payout-order contract; the mobile client must not calculate it."
       }
     },
     "/api/v1/stokvels/{stokvelId}/invites": {
@@ -2365,6 +2437,57 @@
         "tags": [
           "Users"
         ]
+      }
+    },
+    "/api/v1/stokvels/{stokvelId}/cycles/{cycleId}/payout-order": {
+      "get": {
+        "tags": [
+          "ContributionCycles"
+        ],
+        "summary": "Get the server-defined payout rotation for a cycle",
+        "description": "Returns members in canonical payout order. Order is membership join order (JoinedAtUtc, then UserId); cycle periods rotate through that stable sequence. Clients must preserve response order and must not derive the next recipient.",
+        "operationId": "GetPayoutOrder",
+        "parameters": [
+          {
+            "name": "stokvelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "cycleId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Payout rotation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PayoutOrderResponse"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Stokvel or cycle not found"
+          }
+        }
       }
     }
   },
