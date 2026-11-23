@@ -51,12 +51,12 @@ void main() {
         ],
       );
       addTearDown(container.dispose);
-      expect(
-        (await container.read(
-          stokvelDetailProvider('ubuntu-savings-club').future,
-        ))?.name,
-        'Ubuntu Savings Club',
+      final detail = await container.read(
+        stokvelDetailProvider('ubuntu-savings-club').future,
       );
+      expect(detail?.homeItem.name, 'Ubuntu Savings Club');
+      expect(detail?.currentCycle?.periodNumber, 5);
+      expect(detail?.currentCycle?.status, 'Open');
       expect(
         await container.read(stokvelDetailProvider('not-member').future),
         isNull,

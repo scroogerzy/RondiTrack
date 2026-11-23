@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 class AppConfig {
   const new(this.environment, this.apiBaseUrl);
 
@@ -42,3 +44,7 @@ class AppConfig {
   final String environment;
   final Uri apiBaseUrl;
 }
+
+final appConfigProvider = Provider<AppConfig>(
+  (ref) => throw StateError('AppConfig must be supplied by main().'),
+);

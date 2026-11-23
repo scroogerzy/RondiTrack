@@ -11,6 +11,8 @@ using RondiTrack.DTOs.ContributionCycles;
 using RondiTrack.DTOs.Contributions;
 using RondiTrack.Mappings;
 using RondiTrack.Domain.Models;
+using RondiTrack.DTOs.Payouts;
+using System.Security.Claims;
 
 namespace RondiTrack.Controllers;
 
@@ -30,19 +32,25 @@ public class ContributionCyclesController : ControllerBase
 
     private readonly IStokvelService _stokvelService;
     private readonly IAuthorizationService _authorizationService;
+    private readonly IStokvelMemberRepository _memberRepository;
+    private readonly IUserRepository _userRepository;
 
     public ContributionCyclesController(
         IContributionCycleRepository cycleRepository,
         IStokvelRepository stokvelRepository,
         IContributionRepository contributionRepository,
         IStokvelService stokvelService,
-        IAuthorizationService authorizationService)
+        IAuthorizationService authorizationService,
+        IStokvelMemberRepository memberRepository,
+        IUserRepository userRepository)
     {
         _cycleRepository = cycleRepository;
         _stokvelRepository = stokvelRepository;
         _contributionRepository = contributionRepository;
         _stokvelService = stokvelService;
         _authorizationService = authorizationService;
+        _memberRepository = memberRepository;
+        _userRepository = userRepository;
     }
 
     /// Returns contribution cycles in deterministic, keyset-paginated order.
@@ -499,20 +507,80 @@ public class ContributionCyclesController : ControllerBase
         return NoContent();
     }
 
-    /// <summary>Records that the payout for a contribution cycle has been processed.</summary>
-    [StokvelAuthorize(Policies.StokvelManager)]
+    /// <summary>Returns the canonical payout rotation for a cycle.</summary>
+    /// <remarks>
+    /// Rotation is determined by membership join order (JoinedAtUtc, then UserId).
+    /// Cycle periods rotate through that stable order. The client must display this
+    /// response as-is and must not sort or derive the next recipient.
+    /// </remarks>
+    [Authorize]
+    [HttpGet("{cycleId:guid}/payout-order")]
+    [ProducesResponseType(typeof(PayoutOrderResponse), StatusCodes.Status200OK)]
+    public async Task<ActionResult<PayoutOrderResponse>> GetPayoutOrder(Guid stokvelId, Guid cycleId)
+    {
+        var cycle = await _cycleRepository.GetByIdAsync(cycleId);
+        if (cycle is null || cycle.StokvelId != stokvelId)
+            return ProblemResponses.NotFound($"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.", HttpContext.Request.Path);
+
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub"), out var callerId))
+            return Unauthorized();
+        var callerMembership = await _memberRepository.GetAsync(callerId, stokvelId);
+        if (callerMembership is null)
+            return ProblemResponses.NotFound("Stokvel was not found.", HttpContext.Request.Path);
+
+        var members = (await _memberRepository.GetByStokvelIdAsync(stokvelId))
+            .OrderBy(member => member.JoinedAtUtc)
+            .ThenBy(member => member.UserId)
+            .ToList();
+        if (members.Count == 0)
+            return Ok(new PayoutOrderResponse(stokvelId, cycleId, cycle.PeriodNumber, Array.Empty<PayoutOrderEntryResponse>()));
+
+        var selectedIndex = (cycle.PeriodNumber - 1) % members.Count;
+        var payoutDate = DateTime.SpecifyKind(cycle.EndDate, DateTimeKind.Utc);
+        var entries = new List<PayoutOrderEntryResponse>(members.Count);
+        for (var index = 0; index < members.Count; index++)
+        {
+            var member = members[index];
+            var user = await _userRepository.GetByIdAsync(member.UserId);
+            var isRecipient = index == selectedIndex;
+            var status = isRecipient
+                ? (cycle.PayoutProcessedAtUtc.HasValue ? "paid" : "next")
+                : "upcoming";
+            entries.Add(new PayoutOrderEntryResponse(
+                member.UserId,
+                user?.FullName ?? "Member",
+                index + 1,
+                decimal.ToInt64(decimal.Round(cycle.TargetAmount * 100m, 0, MidpointRounding.AwayFromZero)),
+                payoutDate,
+                status));
+        }
+
+        return Ok(new PayoutOrderResponse(stokvelId, cycleId, cycle.PeriodNumber, entries));
+    }
+
+    /// <summary>Records that the payout for the cycle's server-selected recipient has been processed.</summary>
+    [Authorize]
     [HttpPost("{cycleId:guid}/payout")]
     [EnableRateLimiting(RateLimitPolicies.Payouts)]
     public async Task<IActionResult> ProcessPayout(Guid stokvelId, Guid cycleId)
     {
+        if (!Guid.TryParse(User.FindFirstValue(ClaimTypes.NameIdentifier) ?? User.FindFirstValue("sub"), out var callerId))
+            return Unauthorized();
+        var membership = await _memberRepository.GetAsync(callerId, stokvelId);
+        if (membership is null)
+            return ProblemResponses.NotFound("Stokvel was not found.", HttpContext.Request.Path);
+        if (!string.Equals(membership.Role, StokvelRoles.Treasurer, StringComparison.OrdinalIgnoreCase))
+            return Forbid();
+
         var cycle = await _cycleRepository.GetByIdAsync(cycleId);
         if (cycle is null || cycle.StokvelId != stokvelId)
-            return ProblemResponses.NotFound(
-                $"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.",
-                HttpContext.Request.Path);
+            return ProblemResponses.NotFound($"Contribution cycle '{cycleId}' was not found for stokvel '{stokvelId}'.", HttpContext.Request.Path);
+        if (cycle.ClosedAtUtc is null)
+            return ProblemResponses.Conflict("A cycle must be closed before its payout can be recorded.", HttpContext.Request.Path);
 
         cycle.ProcessPayout(DateTime.UtcNow);
         await _cycleRepository.UpdateAsync(cycle);
         return Ok(new { cycle.Id, cycle.StokvelId, cycle.PayoutProcessedAtUtc });
     }
+
 }

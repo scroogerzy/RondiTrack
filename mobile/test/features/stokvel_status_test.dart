@@ -53,4 +53,22 @@ void main() {
       isEmpty,
     );
   });
+  test('only the Treasurer can record a closed-cycle payout', () {
+    final treasurer = availableActions(
+      role: StokvelRole.treasurer,
+      cycleStatus: CycleStatus.closed,
+      contributionStatus: ContributionStatus.unknown,
+      hasOwnContribution: false,
+    );
+    final chairperson = availableActions(
+      role: StokvelRole.chairperson,
+      cycleStatus: CycleStatus.closed,
+      contributionStatus: ContributionStatus.unknown,
+      hasOwnContribution: false,
+    );
+    expect(treasurer, contains(StokvelAction.recordPayout));
+    expect(chairperson, isNot(contains(StokvelAction.recordPayout)));
+  });
 }
+
+// Assignment 10.3: payout recording is a Treasurer-only membership action.
