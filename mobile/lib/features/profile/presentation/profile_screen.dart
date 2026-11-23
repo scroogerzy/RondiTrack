@@ -1,12 +1,13 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import 'package:ronditrack_mobile/features/auth/auth_session.dart';
 
 class ProfileScreen extends ConsumerWidget {
-  const new({super.key});
+  const ProfileScreen({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(fakeAuthProvider);
+    final session = ref.watch(authSessionProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Profile')),
       body: ListView(
@@ -15,13 +16,15 @@ class ProfileScreen extends ConsumerWidget {
           const CircleAvatar(radius: 36, child: Icon(Icons.person, size: 36)),
           const SizedBox(height: 16),
           Text(
-            auth.displayName,
+            session?.email.split('@').first ?? 'Account',
             style: Theme.of(context).textTheme.headlineSmall,
           ),
-          Text(auth.email ?? 'Not signed in'),
+          Text(session?.email ?? 'Not signed in'),
           const SizedBox(height: 24),
           FilledButton.tonalIcon(
-            onPressed: () => ref.read(fakeAuthProvider.notifier).signOut(),
+            onPressed: session == null
+                ? null
+                : () => ref.read(authSessionProvider.notifier).signOut(),
             icon: const Icon(Icons.logout),
             label: const Text('Sign out'),
           ),

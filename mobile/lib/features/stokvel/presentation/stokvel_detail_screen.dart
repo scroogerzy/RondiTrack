@@ -1,10 +1,12 @@
-﻿// Keep long UI expressions readable; avoid awkward line breaks.
+// Keep long UI expressions readable; avoid awkward line breaks.
 // ignore_for_file: lines_longer_than_80_chars
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ronditrack_mobile/core/layout/window_class.dart';
 import 'package:ronditrack_mobile/core/money/cents.dart';
+import 'package:ronditrack_mobile/core/network/rondi_api.dart';
 import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
 import 'package:ronditrack_mobile/features/home/domain/home_models.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
@@ -188,10 +190,88 @@ class StokvelDetailScreen extends ConsumerWidget {
             ListTile(
               title: Text(action.label),
               leading: const Icon(Icons.lock_outline),
-              subtitle: const Text('Preview only in the fake-data assignment.'),
+              subtitle: Text(action == StokvelAction.pay ? 'Record a contribution for this cycle.' : 'Available to your membership role.'),
             ),
         ],
       );
     },
   );
+}
+
+// Records a contribution against the API's current cycle.
+Future<void> _recordContribution(
+  BuildContext context,
+  WidgetRef ref,
+  StokvelDetail item,
+) async {
+  final controller = TextEditingController();
+  final rawAmount = await showDialog<String>(
+    context: context,
+    builder: (dialogContext) => AlertDialog(
+      title: const Text('Record contribution'),
+      content: TextField(
+        controller: controller,
+        autofocus: true,
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        decoration: const InputDecoration(
+          labelText: 'Amount (R)',
+          prefixText: 'R ',
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(dialogContext),
+          child: const Text('Cancel'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(dialogContext, controller.text),
+          child: const Text('Continue'),
+        ),
+      ],
+    ),
+  );
+  controller.dispose();
+
+  if (rawAmount == null || !context.mounted) return;
+
+  final parts = rawAmount.trim().split('.');
+  if (!RegExp(r'^\d+(\.\d{1,2})?$').hasMatch(rawAmount.trim())) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Enter a valid amount, e.g. 150.00.')),
+    );
+    return;
+  }
+
+  final cents = int.parse(parts[0]) * 100 +
+      (parts.length == 2 ? int.parse(parts[1].padRight(2, '0')) : 0);
+  if (cents <= 0 || item.currentCycle == null) return;
+
+  try {
+    final random = Random.secure();
+    final key = 'mobile-${DateTime.now().microsecondsSinceEpoch}-'
+        '${random.nextInt(1 << 32).toRadixString(16)}';
+
+    await ref.read(rondiApiProvider).recordContribution(
+      stokvelId: item.homeItem.stokvelId,
+      cycleId: item.currentCycle!.id,
+      userId: item.currentUserId,
+      amountInCents: cents,
+      idempotencyKey: key,
+    );
+
+    ref.invalidate(stokvelDetailProvider(item.homeItem.stokvelId));
+    ref.invalidate(homeControllerProvider);
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Contribution recorded.')),
+      );
+    }
+  } catch (error) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    }
+  }
 }

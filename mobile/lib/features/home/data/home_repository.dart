@@ -1,5 +1,8 @@
-import 'package:riverpod_annotation/riverpod_annotation.dart';
+﻿import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import 'package:ronditrack_mobile/core/data/app_data_mode.dart';
+import 'package:ronditrack_mobile/core/network/rondi_api.dart';
+import 'api_home_repository.dart';
 import 'package:ronditrack_mobile/core/money/cents.dart';
 import 'package:ronditrack_mobile/features/home/domain/home_models.dart';
 import 'package:ronditrack_mobile/features/home/domain/home_repository.dart';
@@ -130,9 +133,13 @@ class FakeHomeRepository implements HomeRepository {
 
 @Riverpod(keepAlive: true)
 HomeRepository homeRepository(Ref ref) {
+  if (ref.watch(appDataModeProvider) == AppDataMode.api) {
+    return ApiHomeRepository(ref.watch(rondiApiProvider));
+  }
+
   final email = ref.watch(fakeAuthProvider).email;
   final persona = switch (email) {
-    'sipho@example.com' => DemoPersona.sibusiso,
+    'sibusiso@example.com' => DemoPersona.sibusiso,
     'thabo@example.com' => DemoPersona.thabo,
     null => DemoPersona.noMemberships,
     _ => DemoPersona.lerato,

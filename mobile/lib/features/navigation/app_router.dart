@@ -1,10 +1,9 @@
-﻿// Preserve the router's explicit setup and refresh sequence.
-// ignore_for_file: cascade_invocations
-import 'package:flutter/foundation.dart';
+﻿import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import 'package:ronditrack_mobile/features/auth/auth_session.dart';
 import 'package:ronditrack_mobile/features/navigation/app_routes.dart';
+import 'package:ronditrack_mobile/core/auth/auth_redirect.dart';
 
 class AuthRefreshNotifier extends ChangeNotifier {
   void refresh() => notifyListeners();
@@ -12,7 +11,7 @@ class AuthRefreshNotifier extends ChangeNotifier {
 
 final authRefreshListenableProvider = Provider<AuthRefreshNotifier>((ref) {
   final notifier = AuthRefreshNotifier();
-  ref.listen(fakeAuthProvider, (previous, next) => notifier.refresh());
+  ref.listen(authSessionProvider, (previous, next) => notifier.refresh());
   ref.onDispose(notifier.dispose);
   return notifier;
 });
@@ -24,9 +23,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     initialLocation: '/home',
     refreshListenable: refresh,
     redirect: (context, state) {
-      final auth = ref.read(fakeAuthProvider);
+      final session = ref.read(authSessionProvider);
       return authRedirect(
-        isSignedIn: auth.isSignedIn,
+        isSignedIn: session != null,
         location: state.uri.path,
         rememberedLocation: state.uri.queryParameters['from'],
       );
@@ -35,3 +34,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   ref.onDispose(router.dispose);
   return router;
 });
+
+
+

@@ -7,6 +7,7 @@ import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
 import 'package:ronditrack_mobile/features/payouts/domain/payout_order.dart';
 import 'package:ronditrack_mobile/features/payouts/presentation/payout_order_controller.dart';
+import 'package:ronditrack_mobile/core/network/rondi_api.dart';
 
 class PayoutOrderScreen extends ConsumerWidget {
   const new({required this.stokvelId, required this.cycleId, super.key});
@@ -52,12 +53,30 @@ class PayoutOrderScreen extends ConsumerWidget {
               if (isTreasurer) ...[
                 const SizedBox(height: 12),
                 FilledButton.icon(
-                  onPressed: null,
+                  onPressed: () async {
+                    try {
+                      await ref.read(rondiApiProvider).recordPayout(
+                        stokvelId: stokvelId,
+                        cycleId: cycleId,
+                      );
+                      ref.invalidate(payoutOrderProvider(key));
+                      ref.invalidate(stokvelDetailProvider(stokvelId));
+                      ref.invalidate(homeControllerProvider);
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Payout recorded successfully.')),
+                        );
+                      }
+                    } catch (error) {
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(content: Text(error.toString())),
+                        );
+                      }
+                    }
+                  },
                   icon: const Icon(Icons.payments_outlined),
                   label: const Text('Record payout'),
-                ),
-                const Text(
-                  'Payout recording is available to the Treasurer. Connect the live API to enable this action.',
                 ),
               ],
               const SizedBox(height: 12),
