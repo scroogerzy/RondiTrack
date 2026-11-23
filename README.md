@@ -2050,3 +2050,40 @@ The API exposes `GET /api/v1/stokvels/{stokvelId}/cycles/{cycleId}/payout-order`
 The implemented rotation rule orders memberships by `JoinedAtUtc` and then `UserId`, and rotates the recipient by cycle period. The payout amount is the cycle `TargetAmount`; payout date is the cycle end date. A non-member receives 404. Only the Treasurer can record a payout; the API checks the live membership role and returns 403 for other roles. This is a product-rule assumption based on the existing membership join timestamp and cycle fields; it must be confirmed before production rollout.
 
 OpenAPI files: `openapi/v1.json` and `mobile/contract/openapi-v1.json`.
+
+## Assignment 10.3 — Mobile implementation
+
+### Navigation
+The payout rotation screen is reachable from a stokvel cycle through the typed GoRouter route:
+
+`/stokvels/:id/cycles/:cycleId/payout-order`
+
+### Payout rotation screen
+The screen displays loading, error, missing-data, empty-rotation, and populated states. It displays each member's position, name, payout amount, status, and payout date. It provides a retry action after loading errors.
+
+The mobile screen treats the supplied payout order as authoritative and does not recalculate or sort it. The Treasurer-only Record payout button is currently disabled pending live API integration.
+
+### Architecture
+The payout feature uses:
+- `domain/payout_order.dart` — domain models.
+- `domain/payout_order_repository.dart` — repository contract.
+- `data/fake_payout_order_repository.dart` — demo repository.
+- `presentation/payout_order_controller.dart` — Riverpod state management.
+- `presentation/payout_order_screen.dart` — user interface.
+
+### Demo personas
+The demo includes Lerato, Sipho, and Thabo accounts. The home repository also provides a no-memberships demo state. These experiences use fake repositories and do not represent production authentication.
+
+### Theme
+`mobile/lib/core/theme/rondi_theme.dart` defines Material 3 light and dark themes using seed colour `#176B57` and the `RondiStatusColors` extension.
+
+### Relevant tests
+- `mobile/test/core/theme/rondi_theme_test.dart`
+- `mobile/test/features/payouts/payout_order_test.dart`
+- `mobile/test/features/payouts/payout_order_provider_test.dart`
+- `mobile/test/features/payouts/payout_order_screen_test.dart`
+
+Run mobile checks from the `mobile` directory using `flutter analyze` and `flutter test`.
+
+### Integration status
+The mobile payout screen currently uses a demo repository. Live payout-order API integration and payout recording must not be considered complete based solely on this mobile implementation. Attach actual screenshots, recording, and CI evidence separately; do not claim unverified checks passed.
