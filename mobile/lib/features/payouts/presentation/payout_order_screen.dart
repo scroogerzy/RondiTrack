@@ -1,18 +1,15 @@
+// This screen keeps related widget configuration together for readability.
 // ignore_for_file: lines_longer_than_80_chars
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
-import 'package:ronditrack_mobile/features/payouts/presentation/payout_order_controller.dart';
-import 'package:ronditrack_mobile/features/payouts/domain/payout_order.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
+import 'package:ronditrack_mobile/features/payouts/domain/payout_order.dart';
+import 'package:ronditrack_mobile/features/payouts/presentation/payout_order_controller.dart';
 
 class PayoutOrderScreen extends ConsumerWidget {
-  const PayoutOrderScreen({
-    required this.stokvelId,
-    required this.cycleId,
-    super.key,
-  });
+  const new({required this.stokvelId, required this.cycleId, super.key});
   final String stokvelId;
   final String cycleId;
 
@@ -33,12 +30,14 @@ class PayoutOrderScreen extends ConsumerWidget {
         error: (error, stack) =>
             _Failure(onRetry: () => ref.invalidate(payoutOrderProvider(key))),
         data: (value) {
-          if (value == null)
+          if (value == null) {
             return const Center(child: Text('Payout order not found.'));
-          if (value.entries.isEmpty)
+          }
+          if (value.entries.isEmpty) {
             return const Center(
               child: Text('No members are in this payout rotation yet.'),
             );
+          }
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -72,7 +71,7 @@ class PayoutOrderScreen extends ConsumerWidget {
 }
 
 class _PayoutEntryTile extends StatelessWidget {
-  const _PayoutEntryTile({required this.entry});
+  const new({required this.entry});
   final PayoutOrderEntry entry;
 
   @override
@@ -140,7 +139,7 @@ class _PayoutEntryTile extends StatelessWidget {
 }
 
 class _Failure extends StatelessWidget {
-  const _Failure({required this.onRetry});
+  const new({required this.onRetry});
   final VoidCallback onRetry;
   @override
   Widget build(BuildContext context) => Center(

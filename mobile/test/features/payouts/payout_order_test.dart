@@ -1,4 +1,3 @@
-// ignore_for_file: lines_longer_than_80_chars
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ronditrack_mobile/core/money/cents.dart';
 import 'package:ronditrack_mobile/features/payouts/domain/payout_order.dart';
@@ -26,7 +25,7 @@ void main() {
         memberId: 'a',
         memberName: 'A',
         position: 1,
-        amount: Cents(150000),
+        amount: const Cents(150000),
         payoutDateUtc: DateTime.utc(2026, 11, 30),
         status: PayoutStatus.next,
       ),
@@ -34,7 +33,7 @@ void main() {
         memberId: 'b',
         memberName: 'B',
         position: 2,
-        amount: Cents(150000),
+        amount: const Cents(150000),
         payoutDateUtc: DateTime.utc(2026, 11, 30),
         status: PayoutStatus.upcoming,
       ),

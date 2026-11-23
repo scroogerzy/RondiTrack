@@ -1,4 +1,3 @@
-// ignore_for_file: lines_longer_than_80_chars
 import 'package:ronditrack_mobile/core/money/cents.dart';
 
 enum PayoutStatus {
@@ -7,7 +6,7 @@ enum PayoutStatus {
   paid,
   unknown;
 
-  factory PayoutStatus.fromApi(String value) => switch (value.toLowerCase()) {
+  factory fromApi(String value) => switch (value.toLowerCase()) {
     'next' => PayoutStatus.next,
     'upcoming' => PayoutStatus.upcoming,
     'paid' => PayoutStatus.paid,
@@ -23,7 +22,7 @@ enum PayoutStatus {
 }
 
 class PayoutOrderEntry {
-  const PayoutOrderEntry({
+  const new({
     required this.memberId,
     required this.memberName,
     required this.position,
@@ -41,7 +40,7 @@ class PayoutOrderEntry {
 }
 
 class PayoutOrder {
-  const PayoutOrder({
+  const new({
     required this.stokvelId,
     required this.cycleId,
     required this.cycleNumber,

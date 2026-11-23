@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ronditrack_mobile/app/app.dart';
 import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import 'package:ronditrack_mobile/core/config/app_config.dart';
 import 'package:ronditrack_mobile/features/home/data/home_repository.dart';
 import 'package:ronditrack_mobile/features/navigation/app_router.dart';
 
@@ -21,6 +22,9 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+          appConfigProvider.overrideWithValue(
+            AppConfig('dev', Uri.parse('http://localhost')),
+          ),
           homeRepositoryProvider.overrideWith(
             (ref) => FakeHomeRepository(delay: Duration.zero),
           ),
@@ -57,6 +61,9 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+          appConfigProvider.overrideWithValue(
+            AppConfig('dev', Uri.parse('http://localhost')),
+          ),
           homeRepositoryProvider.overrideWith(
             (ref) => FakeHomeRepository(delay: Duration.zero),
           ),

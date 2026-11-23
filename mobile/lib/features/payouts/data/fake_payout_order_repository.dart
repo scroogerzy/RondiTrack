@@ -1,3 +1,4 @@
+// This fixture keeps API-shaped sample values together for readability.
 // ignore_for_file: lines_longer_than_80_chars
 import 'package:ronditrack_mobile/core/money/cents.dart';
 import 'package:ronditrack_mobile/features/payouts/domain/payout_order.dart';
@@ -5,15 +6,16 @@ import 'package:ronditrack_mobile/features/payouts/domain/payout_order_repositor
 
 /// Fixed API-shaped fixture. It deliberately does not calculate or sort rotation.
 class FakePayoutOrderRepository implements PayoutOrderRepository {
-  const FakePayoutOrderRepository();
+  const new();
 
   @override
   Future<PayoutOrder?> load(String stokvelId, String cycleId) async {
     if (!{
       'ubuntu-savings-club:ubuntu-cycle-5',
       'mzanzi-monthly-stokvel:mzanzi-cycle-5',
-    }.contains('$stokvelId:$cycleId'))
+    }.contains('$stokvelId:$cycleId')) {
       return null;
+    }
 
     final ubuntu = stokvelId == 'ubuntu-savings-club';
     final date = DateTime.utc(2026, 11, 30, 23, 59, 59);

@@ -5,6 +5,10 @@ plugins {
 }
 
 android {
+    buildFeatures {
+        resValues = true
+    }
+
     flavorDimensions += "environment"
     productFlavors {
         create("dev") { dimension = "environment"; applicationIdSuffix = ".dev"; resValue("string", "app_name", "RondiTrack Dev") }

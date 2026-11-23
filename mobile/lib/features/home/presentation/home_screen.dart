@@ -2,9 +2,9 @@
 // ignore_for_file: lines_longer_than_80_chars
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
-import 'package:ronditrack_mobile/core/config/app_config.dart';
 import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import 'package:ronditrack_mobile/core/config/app_config.dart';
+import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
 import 'package:ronditrack_mobile/features/navigation/app_routes.dart';
 

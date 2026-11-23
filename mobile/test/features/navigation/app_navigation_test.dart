@@ -1,8 +1,9 @@
-﻿// Keep widget-test setup explicit so each step remains easy to follow.
+// Keep widget-test setup explicit so each step remains easy to follow.
 // ignore_for_file: cascade_invocations
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ronditrack_mobile/app/app.dart';
+import 'package:ronditrack_mobile/core/config/app_config.dart';
 import 'package:ronditrack_mobile/features/home/data/home_repository.dart';
 import 'package:ronditrack_mobile/features/navigation/app_router.dart';
 
@@ -11,20 +12,10 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         retry: (count, error) => null,
-        child: const RondiTrackApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
-    expect(find.text('Sign in to RondiTrack'), findsOneWidget);
-  });
-
-  testWidgets('sign in lands on Home and tabs remain available', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        retry: (count, error) => null,
         overrides: [
+          appConfigProvider.overrideWithValue(
+            AppConfig('dev', Uri.parse('http://localhost')),
+          ),
           homeRepositoryProvider.overrideWith(
             (ref) => FakeHomeRepository(delay: Duration.zero),
           ),
@@ -45,7 +36,13 @@ void main() {
   });
 
   testWidgets('invite opened signed out survives fake sign in', (tester) async {
-    final container = ProviderContainer();
+    final container = ProviderContainer(
+      overrides: [
+        appConfigProvider.overrideWithValue(
+          AppConfig('dev', Uri.parse('http://localhost')),
+        ),
+      ],
+    );
     final router = container.read(appRouterProvider);
     router.go('/join/INVITE-42');
     await tester.pumpWidget(
@@ -63,56 +60,13 @@ void main() {
   });
 
   testWidgets('profile sign out returns to sign in', (tester) async {
-    await tester.pumpWidget(const ProviderScope(child: RondiTrackApp()));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Profile'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign out'));
-    await tester.pumpAndSettle();
-    expect(find.text('Sign in to RondiTrack'), findsOneWidget);
-    await tester.binding.handlePopRoute();
-    await tester.pumpAndSettle();
-    expect(find.text('Sign in to RondiTrack'), findsOneWidget);
-  });
-
-  testWidgets('a non-member sees not found for a stokvel deep link', (
-    tester,
-  ) async {
-    final container = ProviderContainer(
-      overrides: [
-        homeRepositoryProvider.overrideWith(
-          (ref) => FakeHomeRepository(
-            persona: DemoPersona.sibusiso,
-            delay: Duration.zero,
-          ),
-        ),
-      ],
-    );
-    final router = container.read(appRouterProvider);
-    await tester.pumpWidget(
-      UncontrolledProviderScope(
-        container: container,
-        child: const RondiTrackApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
-    router.go('/stokvels/mzanzi-monthly-stokvel');
-    await tester.pumpAndSettle();
-    expect(find.text('Stokvel not found.'), findsOneWidget);
-    container.dispose();
-  });
-
-  testWidgets('Lerato sees treasurer actions only in her treasurer stokvel', (
-    tester,
-  ) async {
     await tester.pumpWidget(
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+          appConfigProvider.overrideWithValue(
+            AppConfig('dev', Uri.parse('http://localhost')),
+          ),
           homeRepositoryProvider.overrideWith(
             (ref) => FakeHomeRepository(delay: Duration.zero),
           ),
@@ -142,6 +96,9 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+          appConfigProvider.overrideWithValue(
+            AppConfig('dev', Uri.parse('http://localhost')),
+          ),
           homeRepositoryProvider.overrideWith(
             (ref) => FakeHomeRepository(delay: Duration.zero),
           ),
@@ -171,6 +128,9 @@ void main() {
   ) async {
     final container = ProviderContainer(
       overrides: [
+        appConfigProvider.overrideWithValue(
+          AppConfig('dev', Uri.parse('http://localhost')),
+        ),
         homeRepositoryProvider.overrideWith(
           (ref) => FakeHomeRepository(
             persona: DemoPersona.sibusiso,

@@ -5,8 +5,8 @@ import 'package:ronditrack_mobile/features/auth/presentation/sign_in_screen.dart
 import 'package:ronditrack_mobile/features/home/presentation/home_screen.dart';
 import 'package:ronditrack_mobile/features/invites/presentation/invite_preview_screen.dart';
 import 'package:ronditrack_mobile/features/navigation/app_shell.dart';
-import 'package:ronditrack_mobile/features/profile/presentation/profile_screen.dart';
 import 'package:ronditrack_mobile/features/payouts/presentation/payout_order_screen.dart';
+import 'package:ronditrack_mobile/features/profile/presentation/profile_screen.dart';
 import 'package:ronditrack_mobile/features/stokvel/presentation/stokvel_cycle_screen.dart';
 import 'package:ronditrack_mobile/features/stokvel/presentation/stokvel_detail_screen.dart';
 import 'package:ronditrack_mobile/features/stokvel/presentation/stokvels_screen.dart';
