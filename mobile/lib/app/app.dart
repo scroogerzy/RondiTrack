@@ -7,7 +7,7 @@ export 'package:ronditrack_mobile/core/config/app_config.dart'
     show appConfigProvider;
 
 class RondiTrackApp extends ConsumerWidget {
-  const new({super.key});
+  const RondiTrackApp({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(appRouterProvider);

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import 'package:ronditrack_mobile/core/auth/auth_redirect.dart';
 
 void main() {
   test('signed out navigation goes to sign in', () {

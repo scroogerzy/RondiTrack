@@ -1,17 +1,19 @@
-﻿// Keep long UI expressions readable; avoid awkward line breaks.
 // ignore_for_file: lines_longer_than_80_chars
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:ronditrack_mobile/features/auth/auth_session.dart';
 import 'package:ronditrack_mobile/core/theme/rondi_status_colors.dart';
+import 'package:ronditrack_mobile/features/auth/auth_session.dart';
 import 'package:ronditrack_mobile/features/home/presentation/home_controller.dart';
 import 'package:ronditrack_mobile/features/navigation/app_routes.dart';
 
 class HomeScreen extends ConsumerWidget {
-  const new({super.key});
+  const HomeScreen({super.key});
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final home = ref.watch(homeControllerProvider);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('RondiTrack'),
@@ -21,16 +23,6 @@ class HomeScreen extends ConsumerWidget {
             onPressed: () => ref.read(authSessionProvider.notifier).signOut(),
             icon: const Icon(Icons.logout),
           ),
-                PopupMenuItem(
-                  value: 'sipho@example.com',
-                  child: Text('Sipho Â· Member'),
-                ),
-                PopupMenuItem(
-                  value: 'thabo@example.com',
-                  child: Text('Thabo Â· No memberships'),
-                ),
-              ],
-            ),
         ],
       ),
       body: RefreshIndicator(
@@ -82,7 +74,12 @@ class HomeScreen extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                '${item.role} Ã‚Â· Cycle ${item.currentCycle ?? 'Ã¢â‚¬â€'}\nPaid ${item.amountPaidThisCycleCents.formatEnZa()} Ã‚Â· Owed ${item.amountOwedCents.formatEnZa()}\nNext payout: ${item.nextPayoutDateUtc?.toLocal().toString().split(' ').first ?? 'Not scheduled'}',
+                                '${item.role} · Cycle '
+                                '${item.currentCycle ?? 'Not started'}\n'
+                                'Paid ${item.amountPaidThisCycleCents.formatEnZa()} '
+                                '· Owed ${item.amountOwedCents.formatEnZa()}\n'
+                                'Next payout: '
+                                '${item.nextPayoutDateUtc?.toLocal().toString().split(' ').first ?? 'Not scheduled'}',
                               ),
                               if (item.arrearsCents.value > 0)
                                 _ArrearsChip(
@@ -105,11 +102,14 @@ class HomeScreen extends ConsumerWidget {
 }
 
 class _ArrearsChip extends StatelessWidget {
-  const new({required this.amount});
+  const _ArrearsChip({required this.amount});
+
   final String amount;
+
   @override
   Widget build(BuildContext context) {
     final tokens = Theme.of(context).extension<RondiStatusColors>()!;
+
     return Chip(
       label: Text('Arrears $amount'),
       backgroundColor: tokens.arrearsBackground,
@@ -117,5 +117,3 @@ class _ArrearsChip extends StatelessWidget {
     );
   }
 }
-
-

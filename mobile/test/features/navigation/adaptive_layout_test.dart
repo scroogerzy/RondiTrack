@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:ronditrack_mobile/app/app.dart';
-import 'package:ronditrack_mobile/core/auth/fake_auth.dart';
+import '../../support/fake_auth_session.dart';
+import 'package:ronditrack_mobile/features/auth/auth_session.dart';
 import 'package:ronditrack_mobile/core/config/app_config.dart';
 import 'package:ronditrack_mobile/features/home/data/home_repository.dart';
 import 'package:ronditrack_mobile/features/navigation/app_router.dart';
@@ -22,6 +23,7 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
           appConfigProvider.overrideWithValue(
             AppConfig('dev', Uri.parse('http://localhost')),
           ),
@@ -36,7 +38,7 @@ void main() {
     final container = ProviderScope.containerOf(
       tester.element(find.byType(RondiTrackApp)),
     );
-    container.read(fakeAuthProvider.notifier).signIn('lerato@example.com');
+    await signInWithDemoCredentials(tester);
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Stokvels'));
@@ -61,6 +63,7 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
           appConfigProvider.overrideWithValue(
             AppConfig('dev', Uri.parse('http://localhost')),
           ),
@@ -72,8 +75,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    await signInWithDemoCredentials(tester);
     final container = ProviderScope.containerOf(
       tester.element(find.byType(RondiTrackApp)),
     );

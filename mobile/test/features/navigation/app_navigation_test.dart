@@ -2,6 +2,8 @@
 // ignore_for_file: cascade_invocations
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import '../../support/fake_auth_session.dart';
+import 'package:ronditrack_mobile/features/auth/auth_session.dart';
 import 'package:ronditrack_mobile/app/app.dart';
 import 'package:ronditrack_mobile/core/config/app_config.dart';
 import 'package:ronditrack_mobile/features/home/data/home_repository.dart';
@@ -13,6 +15,7 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
           appConfigProvider.overrideWithValue(
             AppConfig('dev', Uri.parse('http://localhost')),
           ),
@@ -24,8 +27,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    await signInWithDemoCredentials(tester);
     expect(find.text('Your stokvels'), findsOneWidget);
     await tester.tap(find.text('Activity'));
     await tester.pumpAndSettle();
@@ -38,6 +40,7 @@ void main() {
   testWidgets('invite opened signed out survives fake sign in', (tester) async {
     final container = ProviderContainer(
       overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
         appConfigProvider.overrideWithValue(
           AppConfig('dev', Uri.parse('http://localhost')),
         ),
@@ -53,8 +56,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     expect(find.text('Sign in to RondiTrack'), findsOneWidget);
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    await signInWithDemoCredentials(tester);
     expect(find.text('You are invited to join a stokvel'), findsOneWidget);
     container.dispose();
   });
@@ -64,6 +66,7 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
           appConfigProvider.overrideWithValue(
             AppConfig('dev', Uri.parse('http://localhost')),
           ),
@@ -75,8 +78,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    await signInWithDemoCredentials(tester);
     await tester.tap(find.text('Stokvels'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ubuntu Savings Club'));
@@ -96,6 +98,7 @@ void main() {
       ProviderScope(
         retry: (count, error) => null,
         overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
           appConfigProvider.overrideWithValue(
             AppConfig('dev', Uri.parse('http://localhost')),
           ),
@@ -107,8 +110,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    await signInWithDemoCredentials(tester);
     await tester.tap(find.text('Stokvels'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Ubuntu Savings Club'));
@@ -128,6 +130,7 @@ void main() {
   ) async {
     final container = ProviderContainer(
       overrides: [
+        authSessionProvider.overrideWith(FakeAuthSessionController.new),
         appConfigProvider.overrideWithValue(
           AppConfig('dev', Uri.parse('http://localhost')),
         ),
@@ -147,8 +150,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sign in'));
-    await tester.pumpAndSettle();
+    await signInWithDemoCredentials(tester);
     router.go('/stokvels/mzanzi-monthly-stokvel/cycles/mzanzi-cycle-5');
     await tester.pumpAndSettle();
     expect(find.text('Cycle not found.'), findsOneWidget);

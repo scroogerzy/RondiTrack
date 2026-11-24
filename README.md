@@ -2087,3 +2087,34 @@ Run mobile checks from the `mobile` directory using `flutter analyze` and `flutt
 
 ### Integration status
 The mobile payout screen currently uses a demo repository. Live payout-order API integration and payout recording must not be considered complete based solely on this mobile implementation. Attach actual screenshots, recording, and CI evidence separately; do not claim unverified checks passed.
+
+## Assignment 11.2 — Mobile sign-in
+
+### Implementation
+
+The mobile application now includes API-backed authentication:
+
+- Sign-in screen with email and password validation.
+- Secure storage for access and refresh credentials.
+- Authentication session restoration when the app starts.
+- Access-token attachment to authenticated API requests.
+- Automatic access-token refresh after an eligible 401 response, with the original request retried once.
+- Sign-out that clears locally stored credentials, including when the API is unavailable.
+- Authentication error handling and navigation based on the current session.
+
+### Main implementation files
+
+- `mobile/lib/features/auth/auth_session.dart`
+- `mobile/lib/features/auth/presentation/sign_in_screen.dart`
+- `mobile/lib/core/network/access_token_store.dart`
+- `mobile/lib/core/network/rondi_api.dart`
+- `mobile/lib/core/network/failure.dart`
+
+### Verification
+
+| Check | Result |
+|---|---|
+| `flutter test` | PASS — all 41 tests passed |
+| `flutter analyze` | 125 diagnostics reported; analysis is not clean |
+
+The successful test run confirms the current automated mobile test suite passes. It does not, by itself, confirm authentication against a deployed production API. The analyzer diagnostics still need review.

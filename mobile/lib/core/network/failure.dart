@@ -37,7 +37,8 @@ final class ConflictFailure extends Failure {
   const ConflictFailure([this.detail]);
   final String? detail;
   @override
-  String get message => detail ?? 'This information has changed. Refresh and try again.';
+  String get message =>
+      detail ?? 'This information has changed. Refresh and try again.';
 }
 
 final class RuleFailure extends Failure {
@@ -66,7 +67,7 @@ final class ServerFailure extends Failure {
 final class NoAnswerFailure extends Failure {
   const NoAnswerFailure();
   @override
-  String get message => 'You’re offline, or we couldn’t reach the server.';
+  String get message => "You're offline, or we couldn't reach the server.";
 }
 
 Failure mapFailure(Object error) {
@@ -94,16 +95,16 @@ Failure mapFailure(Object error) {
                 : [entry.value.toString()],
         });
       }
-      return RuleFailure(detail ?? 'Please check the information and try again.');
+      return RuleFailure(
+        detail ?? 'Please check the information and try again.',
+      );
     }
     if (status == 401) return const UnauthenticatedFailure();
     if (status == 403) return ForbiddenFailure(detail);
     if (status == 404) return NotFoundFailure(detail);
     if (status == 409 || status == 412) return ConflictFailure(detail);
     if (status == 429) {
-      final seconds = int.tryParse(
-        response.headers.value('Retry-After') ?? '',
-      );
+      final seconds = int.tryParse(response.headers.value('Retry-After') ?? '');
       return RateLimitedFailure(seconds != null && seconds > 0 ? seconds : 60);
     }
     if (status >= 500) {
@@ -113,7 +114,9 @@ Failure mapFailure(Object error) {
   }
 
   if (error is FormatException) {
-    return const ServerFailure(detail: 'The server returned an invalid response.');
+    return const ServerFailure(
+      detail: 'The server returned an invalid response.',
+    );
   }
   return const ServerFailure(detail: 'An unexpected error occurred.');
 }
